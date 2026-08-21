@@ -12,7 +12,10 @@ along; what this gets you instead is **readable, hackable game code** — the
 engine as C you can set a breakpoint in, not as translated machine code.
 
 The eventual target is 6DoF VR, which is why the camera and stereo-projection
-work is already here. That is a roadmap, not a claim: see *Status*.
+work is already here. That is a roadmap, not a claim: see *Status*, and
+[`VR-PLAN.md`](VR-PLAN.md) for how the VR layer is deliberately kept
+host-agnostic — it attaches through four one-line camera accessors that any
+GoldenEye host has, not through this port's internals.
 
 ## What this actually is
 
@@ -187,6 +190,7 @@ tests/test_math.cpp      Parity + convention tests.
 patches/DECOMP-PATCHES.md  Exactly what changes in n64decomp/007, and why.
 patches/HOST-PORT-PATCHES.md  The 33 bug families this port has hit, with fixes.
 PRIOR-ART.md             Every other GoldenEye PC-port effort, and where we differ.
+VR-PLAN.md               The 6DoF plan, and what carries between hosts.
 VENDORING.md             What may be reused from other projects, and on what terms.
 RESUME-HERE.md           Current frontier, and what bites next.
 ```
