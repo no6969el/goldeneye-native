@@ -1,0 +1,57 @@
+RT64: add GBI detection hashes for retail GoldenEye 007 (NTSC-U)
+
+RT64 already implements GoldenEye's microcode dialect in
+src/gbi/rt64_gbi_f3dgolden.cpp — F3DGOLDEN_G_TRIX at 0xB1, decoding four
+triangles per command from 4-bit vertex indices. That handler is correct.
+
+What is missing is a detection entry for the retail cartridge. The existing
+F3D_GOLDEN segments are the right *lengths* (0x1420 text, 0x800 data — matching
+the real ucode byte for byte) but carry hashes from a different build, and both
+are marked "Needs confirmation." with the instance string
+"SW Version: 2.0G, 09-30-96 (GE007)".
+
+Hashes below were computed with XXH3-64 over the microcode extracted from a
+verified NTSC-U ROM (SHA1 abe01e4aeb033b6c0836819f549c791b26cfde83), using the
+same incremental scheme as GBIManager::getGBIForUCode:
+
+    bin/gspboot.text.bin   0x1420 bytes   0xC09B06D35BC306D9
+    bin/gspboot.data.bin   0x800  bytes   0xDEEF4CB184A0CAB8
+
+Without this, getGBIForUCode falls through to
+"Unable to find a matching GBI in the current database. This game is not
+supported in HLE." even though the handler for it is present and working.
+
+---
+
+--- a/src/gbi/rt64_gbi.cpp
++++ b/src/gbi/rt64_gbi.cpp
+@@
+     const GBIInstance   F3D_GOLDEN                = { "SW Version: 2.0G, 09-30-96 (GE007)",        GBIUCode::F3DGOLDEN,   { false,  false,  false,  false,  false } }; // Needs confirmation.
++    const GBIInstance   F3D_GOLDEN_NTSC_U         = { "GoldenEye 007 (NTSC-U retail)",             GBIUCode::F3DGOLDEN,   { false,  false,  false,  false,  false } };
+
+ (text segment table)
+@@
+             GBISegment{ 0x1420,     0xEDA47A4C2B7E69F8ULL,  { &F3D_GOLDEN } }, // Needs confirmation.
++            GBISegment{ 0x1420,     0xC09B06D35BC306D9ULL,  { &F3D_GOLDEN_NTSC_U } },
+
+ (data segment table)
+@@
+             GBISegment{ 0x800,      0xB2152361A81ED3B0ULL,  { &F3D_GOLDEN } }, // Needs confirmation.
++            GBISegment{ 0x800,      0xDEEF4CB184A0CAB8ULL,  { &F3D_GOLDEN_NTSC_U } },
+
+---
+
+Applying this by hand is three lines. It is written as a description rather than
+a strict diff because RT64's table shifts between revisions and a line-number
+patch would rot immediately.
+
+ALTERNATIVE, if you would rather not carry a fork: bypass detection entirely and
+select GBIUCode::F3DGOLDEN directly. A native port always knows which game it
+is, so hashing the microcode to discover it is ceremony. Doing that also removes
+the requirement to place the microcode blobs in RDRAM at all — which is
+otherwise a strange obligation for a port where the RSP does not exist.
+
+VERIFYING: RT64 prints the hash it computed whenever a table entry uses
+GBI_UNKNOWN_HASH_NUMB, and deduceGBIInformation() runs on a detection miss. If
+you are on a different region or revision, run once and read the printed values
+rather than trusting the ones above.

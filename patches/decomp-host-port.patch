@@ -1,0 +1,3905 @@
+diff --git a/assets/animationtable_data.h b/assets/animationtable_data.h
+index db2d6a8..e660f32 100644
+--- a/assets/animationtable_data.h
++++ b/assets/animationtable_data.h
+@@ -197,6 +197,17 @@
+ // These are compile time extern constants (so not "really" const), but used the same
+ // as the defines above, which is to index into ptr_animation_table.
+ 
++#ifdef GE_HOST_PORT
++/* Host: ANIM_DATA_* are OFFSETS into the separately-loaded animation_data
++   segment, not objects -- the game only ever takes their address. A host link
++   would make them BSS arrays at 0x20000000 and the subscript into
++   ptr_animation_table->data would run half a gigabyte past a 0xFFFF-byte table.
++   ge_anim_offsets.h defines each as the byte AT its offset, so &NAME is the
++   offset and every use site works unchanged. The declarations below cannot
++   coexist with those macros, so the host path takes the header instead.
++   See patches/HOST-PORT-PATCHES.md 19. */
++#include <ge_anim_offsets.h>
++#else
+ extern s32 ANIM_DATA_idle;
+ extern s32 ANIM_DATA_fire_standing;
+ extern s32 ANIM_DATA_fire_standing_fast;
+@@ -384,6 +395,7 @@ extern s32 ANIM_DATA_credits_natalya_kissing;
+ extern s32 ANIM_DATA_helicopter_cradle;
+ extern s32 ANIM_DATA_plane_runway;
+ extern s32 ANIM_DATA_helicopter_takeoff;
++#endif
+ 
+ 
+ 
+diff --git a/assets/embedded/player_gait_object/modelnode.inc.c b/assets/embedded/player_gait_object/modelnode.inc.c
+index dbf0027..28f3c5a 100644
+--- a/assets/embedded/player_gait_object/modelnode.inc.c
++++ b/assets/embedded/player_gait_object/modelnode.inc.c
+@@ -1,17 +1,39 @@
++/* Host: the pointer members below are addresses, which a pinned 4-byte
++   member cannot hold in a static initialiser. Zeroed here and assigned
++   before main(). See hostcompat/ge_init_ptr.h. */
++#ifdef GE_HOST_PORT
++#include <ge_init_ptr.h>
++#else
++#define GE_INIT_STMT(stmt)
++#endif
++
+ //D:8003C580
+-ModelNode player_gait_hdr = {1, &player_gait_obj, 0, 0, 0, &player_gait_pos_hdr_1};
++ModelNode player_gait_hdr = {1, 0, 0, 0, 0, 0};
++GE_INIT_STMT(player_gait_hdr.Data = &player_gait_obj);
++GE_INIT_STMT(player_gait_hdr.Child = &player_gait_pos_hdr_1);
+ //D:8003C598
+-ModelNode player_gait_pos_hdr_1 = {2,&player_gait_pos_1, &player_gait_hdr, 0, 0, &player_gait_pos_hdr_2};
++ModelNode player_gait_pos_hdr_1 = {2, 0, 0, 0, 0, 0};
++GE_INIT_STMT(player_gait_pos_hdr_1.Data = &player_gait_pos_1);
++GE_INIT_STMT(player_gait_pos_hdr_1.Parent = &player_gait_hdr);
++GE_INIT_STMT(player_gait_pos_hdr_1.Child = &player_gait_pos_hdr_2);
+ //D:8003C5B0
+-ModelNode player_gait_pos_hdr_2 = {2, &player_gait_pos_2, &player_gait_pos_hdr_1, 0, 0, &player_gait_pos_hdr_3};
++ModelNode player_gait_pos_hdr_2 = {2, 0, 0, 0, 0, 0};
++GE_INIT_STMT(player_gait_pos_hdr_2.Data = &player_gait_pos_2);
++GE_INIT_STMT(player_gait_pos_hdr_2.Parent = &player_gait_pos_hdr_1);
++GE_INIT_STMT(player_gait_pos_hdr_2.Child = &player_gait_pos_hdr_3);
+ //D:8003C5C8
+-ModelNode player_gait_pos_hdr_3 = {2, &player_gait_pos_3, &player_gait_pos_hdr_2, 0, 0, 0};
++ModelNode player_gait_pos_hdr_3 = {2, 0, 0, 0, 0, 0};
++GE_INIT_STMT(player_gait_pos_hdr_3.Data = &player_gait_pos_3);
++GE_INIT_STMT(player_gait_pos_hdr_3.Parent = &player_gait_pos_hdr_2);
+ //D:8003C5E0
+-ModelRoData_HeaderRecord player_gait_obj = {0, 1, &player_gait_pos_hdr_1, 0, 0, 0};
++ModelRoData_HeaderRecord player_gait_obj = {0, 1, 0, 0, 0, 0};
++GE_INIT_STMT(player_gait_obj.FirstGroupNode = &player_gait_pos_hdr_1);
+ //D:8003C5F0
+-ModelRoData_GroupRecord player_gait_pos_1 = {{0.0, 0.0, 0.0}, 0x0001, 0x0002, 0xFFFF, 0xFFFF, &player_gait_pos_hdr_2, 0};
++ModelRoData_GroupRecord player_gait_pos_1 = {{0.0, 0.0, 0.0}, 0x0001, 0x0002, 0xFFFF, 0xFFFF, 0, 0};
++GE_INIT_STMT(player_gait_pos_1.ChildGroupNode = &player_gait_pos_hdr_2);
+ //D:8003C60C
+-ModelRoData_GroupRecord player_gait_pos_2 = {{1.177982, 41.14437, 0.0}, 0x0002, 0x0003, 0xFFFF, 0xFFFF, &player_gait_pos_hdr_3, 0};
++ModelRoData_GroupRecord player_gait_pos_2 = {{1.177982, 41.14437, 0.0}, 0x0002, 0x0003, 0xFFFF, 0xFFFF, 0, 0};
++GE_INIT_STMT(player_gait_pos_2.ChildGroupNode = &player_gait_pos_hdr_3);
+ //D:8003C628
+ ModelRoData_GroupRecord player_gait_pos_3 = {{-2.576027, 480.42902, 0.0}, 0x0003, 0x0000, 0xFFFF, 0xFFFF, NULL, 0};
+ 
+diff --git a/assets/font_dl.h b/assets/font_dl.h
+index f449e05..1c2a92f 100644
+--- a/assets/font_dl.h
++++ b/assets/font_dl.h
+@@ -1,8 +1,17 @@
+ #ifndef _FONT_DL_H_
+ #define _FONT_DL_H_
+ 
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern Gfx dlBasicGeometry[4];
+ extern Gfx dlZBufferGeometry[4];
+ extern Gfx dlFastPipelineSetup[15];
++#endif
+ 
+ #endif
+diff --git a/assets/oddtextures.h b/assets/oddtextures.h
+index 8974bcd..8dae42e 100644
+--- a/assets/oddtextures.h
++++ b/assets/oddtextures.h
+@@ -104,6 +104,14 @@ enum MPCHRSELIMAGES {
+     IMG_MPC_MISHKIN
+ };
+ 
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern Gfx globalDL_0x000;
+ extern Gfx globalDL_0x078;
+ extern Gfx globalDL_0x120;
+@@ -153,5 +161,6 @@ extern sImageTableEntry s_mainfolderimages[];
+ extern sImageTableEntry s_mpradarimages[];
+ extern sImageTableEntry s_mpcharselimages[];
+ extern sImageTableEntry s_mpstageselimages[];
++#endif
+ 
+ #endif
+diff --git a/include/CPPLib.h b/include/CPPLib.h
+index 6cae4b0..b783cb4 100644
+--- a/include/CPPLib.h
++++ b/include/CPPLib.h
+@@ -253,9 +253,26 @@
+ /**
+  * Detects if arg or macro is defined as nothing.
+  */
++#ifdef TARGET_N64
+ #define IS_EMPTY(x)  _IS_EMPTY(x)
+ #define _IS_EMPTY(x) IS_PROBE(CAT(_IS_EMPTY, _##x##_))
+ #define _IS_EMPTY__  PROBE(~) /*NULL*/
++#else
++/* Host build: the original pastes _##x##_, which is not a valid preprocessing
++   token when x is a float literal (_0.1). Portable emptiness test instead --
++   never pastes the argument, only the resulting flags. */
++#define _GE_ARG16(_0,_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,_13,_14,_15,...) _15
++#define _GE_HAS_COMMA(...) _GE_ARG16(__VA_ARGS__,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0)
++#define _GE_TRIGGER_PAREN_(...) ,
++#define _GE_PASTE5(_0,_1,_2,_3,_4) _0##_1##_2##_3##_4
++#define _GE_IS_EMPTY_CASE(_0,_1,_2,_3) _GE_HAS_COMMA(_GE_PASTE5(_GE_IS_EMPTY_CASE_,_0,_1,_2,_3))
++#define _GE_IS_EMPTY_CASE_0001 ,
++#define IS_EMPTY(...) _GE_IS_EMPTY_CASE( \
++    _GE_HAS_COMMA(__VA_ARGS__), \
++    _GE_HAS_COMMA(_GE_TRIGGER_PAREN_ __VA_ARGS__), \
++    _GE_HAS_COMMA(__VA_ARGS__ (/*empty*/)), \
++    _GE_HAS_COMMA(_GE_TRIGGER_PAREN_ __VA_ARGS__ (/*empty*/)))
++#endif
+ 
+ /**
+  * Detects if arg or macro is a Bool (1 or 0).
+@@ -334,7 +351,17 @@
+  * _VA_ARGS_ for c89
+  * Allows up to 32 Args on the stack
+  */
+-#define EXPAND_ARGS_STACK(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR) \
++/* Host port: same omitted-trailing-argument pattern as BITFLAG and SWITCH.
++   Pad with 33 empties and forward to the original fixed-arity body. */
++#ifdef __sgi
++/* IDO: no variadic macros (C89). It tolerates omitted trailing
++   arguments natively, so it can call the implementation directly. */
++#  define EXPAND_ARGS_STACK(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR) EXPAND_ARGS_STACK_I(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR)
++#else
++#  define EXPAND_ARGS_STACK(...) EXPAND_ARGS_STACK_PAD(__VA_ARGS__, ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, )
++#  define EXPAND_ARGS_STACK_PAD(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR, ...) EXPAND_ARGS_STACK_I(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR)
++#endif
++#define EXPAND_ARGS_STACK_I(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,ERROR) \
+ IF_VA(NOT(IS_EMPTY(A)))/*
+ */(/*
+ 	*/A /*
+diff --git a/include/PR/gbi.h b/include/PR/gbi.h
+index ebfab07..a80ab8c 100644
+--- a/include/PR/gbi.h
++++ b/include/PR/gbi.h
+@@ -2477,11 +2477,11 @@ typedef union {
+         gsSPLoadUcodeEx((uc_start), (uc_dstart), SP_UCODE_DATA_SIZE)
+ 
+ #define	gSPLoadUcodeL(pkt, ucode)					\
+-        gSPLoadUcode((pkt), OS_K0_TO_PHYSICAL(&##ucode##TextStart),	\
+-		            OS_K0_TO_PHYSICAL(&##ucode##DataStart))
++        gSPLoadUcode((pkt), OS_K0_TO_PHYSICAL(&ucode##TextStart),	\
++		            OS_K0_TO_PHYSICAL(&ucode##DataStart))
+ #define	gsSPLoadUcodeL(ucode)						\
+-        gsSPLoadUcode(OS_K0_TO_PHYSICAL(&##ucode##TextStart),		\
+-		      OS_K0_TO_PHYSICAL(&##ucode##DataStart))
++        gsSPLoadUcode(OS_K0_TO_PHYSICAL(&ucode##TextStart),		\
++		      OS_K0_TO_PHYSICAL(&ucode##DataStart))
+ #endif
+ 
+ #ifdef	F3DEX_GBI_2
+diff --git a/include/PR/libaudio.h b/include/PR/libaudio.h
+index f0ee2c6..d514b90 100644
+--- a/include/PR/libaudio.h
++++ b/include/PR/libaudio.h
+@@ -34,6 +34,16 @@ extern "C" {
+ #endif
+ 
+ #include <PR/ultratypes.h>
++
++#ifdef GE_HOST_PORT
++/* GE_N64PTR: 4-byte pointers inside structs that describe cartridge data, so
++   the host layout matches the N64's. Expands to nothing off the host path, so
++   the N64 token stream is unchanged. See hostcompat/ge_n64ptr.h. */
++#include <ge_n64ptr.h>
++#else
++#define GE_N64PTR
++#endif
++
+ #include <PR/mbi.h>
+     
+ /***********************************************************************
+@@ -205,8 +215,8 @@ typedef struct {
+ } ALKeyMap;
+ 
+ typedef struct {
+-    ALADPCMloop *loop;
+-    ALADPCMBook *book;
++    ALADPCMloop * GE_N64PTR loop;
++    ALADPCMBook * GE_N64PTR book;
+ } ALADPCMWaveInfo;
+ 
+ typedef struct {
+@@ -214,7 +224,7 @@ typedef struct {
+ } ALRAWWaveInfo;
+ 
+ typedef struct ALWaveTable_s {
+-    u8          *base;          /* ptr to start of wave data    */
++    u8          * GE_N64PTR base;          /* ptr to start of wave data    */
+     s32         len;            /* length of data in bytes      */
+     u8          type;           /* compression type             */
+     u8          flags;          /* offset/address flags         */
+@@ -225,9 +235,9 @@ typedef struct ALWaveTable_s {
+ } ALWaveTable;
+ 
+ typedef struct ALSound_s {
+-    ALEnvelope  *envelope;
+-    ALKeyMap    *keyMap;
+-    ALWaveTable *wavetable;     /* offset to wavetable struct           */
++    ALEnvelope  * GE_N64PTR envelope;
++    ALKeyMap    * GE_N64PTR keyMap;
++    ALWaveTable * GE_N64PTR wavetable;     /* offset to wavetable struct           */
+     ALPan       samplePan;
+     u8          sampleVolume;
+     u8          flags;
+@@ -248,7 +258,7 @@ typedef struct {
+     u8          vibDelay;       /* the delay for the tremelo osc        */
+     s16         bendRange;      /* pitch bend range in cents            */
+     s16         soundCount;     /* number of sounds in this array       */
+-    ALSound     *soundArray[1];
++    ALSound     * GE_N64PTR soundArray[1];
+ } ALInstrument;
+ 
+ typedef struct ALBank_s {
+@@ -256,14 +266,14 @@ typedef struct ALBank_s {
+     u8                  flags;
+     u8                  pad;
+     s32                 sampleRate;     /* e.g. 44100, 22050, etc...       */
+-    ALInstrument        *percussion;    /* default percussion for GM       */
+-    ALInstrument        *instArray[1];  /* ARRAY of instruments            */
++    ALInstrument        * GE_N64PTR percussion;    /* default percussion for GM       */
++    ALInstrument        * GE_N64PTR instArray[1];  /* ARRAY of instruments            */
+ } ALBank;
+ 
+ typedef struct {                /* Note: sizeof won't be correct        */
+     s16         revision;       /* format revision of this file         */
+     s16         bankCount;      /* number of banks                      */
+-    ALBank      *bankArray[1];  /* ARRAY of bank offsets                */
++    ALBank      * GE_N64PTR bankArray[1];  /* ARRAY of bank offsets                */
+ } ALBankFile;
+ 
+ void    alBnkfNew(ALBankFile *f, u8 *table);
+diff --git a/src/aicommands2.h b/src/aicommands2.h
+index 3156c9b..e5e0ff4 100644
+--- a/src/aicommands2.h
++++ b/src/aicommands2.h
+@@ -291,8 +291,29 @@
+   @exception: AI_LIST_ID Must NOT be a BG List (10XX)
+               THIS must be defined for this function to be able to return
+ ******************************************************************************/
++/*
++ * HOST BUILD: the trailing comma is dropped.
++ *
++ * The false branch already ends in a comma -- SetChrAiList() emits one -- and
++ * this macro adds another, so the host preprocessor produces `... 0x00FF , ,`
++ * and the array initializer has an empty element. IDO produces a single comma
++ * from the same macro: its deferred-expansion (DEFER/EVAL) rescan behaves
++ * differently, and the deferred COMMA never materializes on top of the one the
++ * command already emitted.
++ *
++ * Only the true branch (AI_ERR_NO_THIS, the deliberate "you forgot to #define
++ * THIS" diagnostic) needs the extra comma, and that branch is a compile error
++ * by design. So the N64 macro below is left byte-identical and only the host
++ * variant differs.
++ */
++#ifndef TARGET_N64
++#define CALL(AI_LIST_ID)  \
++                                  IF_ELSE (  DEFINED (  THIS )                     )  (  AI_ERR_NO_THIS   )  (  (                    SetReturnAiList(THIS)SetChrAiList(CHR_SELF, (!isBGAIListID(AI_LIST_ID) && isSubroutine(AI_LIST_ID) ? AI_LIST_ID : AI_ERR_NOTSUB)) )  )  
++#else
+ #define CALL(AI_LIST_ID)  \
+                                   IF_ELSE (  DEFINED (  THIS )                     )  (  AI_ERR_NO_THIS   )  (  (                    SetReturnAiList(THIS)SetChrAiList(CHR_SELF, (!isBGAIListID(AI_LIST_ID) && isSubroutine(AI_LIST_ID) ? AI_LIST_ID : AI_ERR_NOTSUB)) )  )  ,
++#endif
++
+ 
+ 
+ 
+diff --git a/src/audi.c b/src/audi.c
+index 511cf31..eea341e 100644
+--- a/src/audi.c
++++ b/src/audi.c
+@@ -45,10 +45,18 @@
+ #define MAIN_QUIT_MESSAGE                  10
+ #define AUDIO_MANAGER_COUNT_INTERVAL     0xf0
+ 
++#ifdef TARGET_N64
+ extern long long int rspbootTextStart[];
+ extern long long int gsp3DTextStart[];
+ extern long long int aspMainTextStart[];
+ extern long long int aspMainDataStart[];
++#else
++/* Host: these labels come from hostcompat/ge_ucode.h, generated from the
++   decomp's own extracted microcode binaries. The *End names are macros
++   there (C cannot place a symbol at another array's end), so the
++   declarations below cannot be parsed once it is included. */
++#include <ge_ucode.h>
++#endif
+ extern u8 sp_audi[];
+ 
+ /**
+@@ -359,7 +367,14 @@ void amCreateAudioManager(ALSynConfig* alconf)
+ 
+     if (alconf->fxType == AL_FX_CUSTOM)
+     {
++#ifdef TARGET_N64
+         s32 sp48[CUSTOM_FX_SECTION_COUNT * CUSTOM_FX_SECTION_SIZE + 2] = CUSTOM_FX_PARAMS_N;
++#else
++            /* Host: IDO accepts an array as an initializer (a copy).
++               Standard C has no such initializer -- the copy is written out. */
++    s32 sp48[CUSTOM_FX_SECTION_COUNT * CUSTOM_FX_SECTION_SIZE + 2];
++    { int _i; for (_i = 0; _i < (CUSTOM_FX_SECTION_COUNT * CUSTOM_FX_SECTION_SIZE + 2); _i++) sp48[_i] = CUSTOM_FX_PARAMS_N[_i]; }
++#endif
+         alconf->params = sp48;
+         alInit(&g_AudioManager.g, alconf);
+     }
+diff --git a/src/bondaicommands.h b/src/bondaicommands.h
+index 6246306..442cf77 100644
+--- a/src/bondaicommands.h
++++ b/src/bondaicommands.h
+@@ -272,6 +272,16 @@
+  * eg
+  * #define SETUPSUBROUTINES(ID) (ID == ACTIVATE_OBJECT) |\
+  */
++/* Host port: SETUPSUBROUTINES is an optional hook, defined nowhere (see the
++   commented example above). Left undefined, DEFINED(SETUPSUBROUTINES(ID))
++   pastes onto a literal ")" -- CPPLib's DEFINED() pastes its argument, the same
++   defect IS_EMPTY had. Defining it to 0 makes the paste legal (_DEFINED_0_ is a
++   real probe) AND is semantically correct: no extra subroutines contributes
++   nothing to the OR below. */
++#if !defined(__sgi) && !defined(SETUPSUBROUTINES)
++#  define SETUPSUBROUTINES(ID) 0
++#endif
++
+ #define isSubroutine(ID) ((ID == GAILIST_PLAY_IDLE_ANIMATION) |\
+                             (ID == GAILIST_BASH_KEYBOARD) | \
+                             (ID == GAILIST_ATTACK_BOND) | \
+@@ -773,6 +783,35 @@ char *DOORSTATE_ToString[] = {
+                   TEST_COMMAND, TEST_VALUE,
+                       CASE_CONTENT,...)
+  */
++/*
++ * SWITCH is padded AT THE CALL SITE, not here -- see src/game/chraidata.c.
++ *
++ * The obvious host fix is the variadic-front-end-plus-padding trick used
++ * elsewhere in this port (HOST-PORT-PATCHES.md section 12):
++ *
++ *     #define SWITCH(VAR, ...) SWITCH_PAD(VAR, __VA_ARGS__, <48 empties>)
++ *
++ * IT IS WRONG HERE, and wrong in a way that still compiles. Substituting
++ * __VA_ARGS__ into another macro's argument list macro-expands it FIRST, so a
++ * case body like
++ *
++ *     PlayAnimation(ANIM_yawning, 0, 193, ...) BREAK
++ *
++ * expands to a comma-separated byte list before SWITCH_I ever separates its
++ * arguments -- and every one of those commas then counts as an argument
++ * separator. One case body becomes six arguments. Measured: a 4-case SWITCH
++ * reached SWITCH_I as 99 arguments instead of 13, and the case content the body
++ * finally saw was the single token `0x10`.
++ *
++ * An object-like alias (`#define SWITCH SWITCH_I`) avoids the extra expansion,
++ * because the source tokens are then separated raw -- but it needs the compiler
++ * to tolerate omitted trailing arguments, which IDO does and standard C does
++ * not.
++ *
++ * So the padding goes where it costs nothing: the four call sites now pass all
++ * 49 arguments explicitly. Both compilers see one fixed-arity macro with a
++ * matching argument count, and no front-end is needed at all.
++ */
+ #define SWITCH(VAR, \
+                CASE0, CASE_VAL0, CASE_CONTENT0,\
+                CASE1, CASE_VAL1, CASE_CONTENT1,\
+@@ -4509,4 +4548,3 @@ IF_VA(NOT(IS_EMPTY(CASE_VAL0)))(IF_VA(NOT(IS_EMPTY(CASE_VAL1)))(BREAK(FAIL_LBL)
+ #endif
+ #endif
+ 
+-
+diff --git a/src/bondconstants.h b/src/bondconstants.h
+index 45bd0ec..3176413 100644
+--- a/src/bondconstants.h
++++ b/src/bondconstants.h
+@@ -77,14 +77,32 @@ typedef enum prefix
+ #define CREATE_STRINGS1(prefix, name) IF_VA(DEFINED(DEBUG))(IF_ELSE(prefix)              \
+ (#prefix "_" #name)(#name)COMMA())
+ 
+-#ifdef __sgi
++/* Host port: the real BITFLAG was gated to __sgi (IDO) only, because the
++   CPPLib expansion machinery it relies on did not work on other
++   preprocessors. With the portable IS_EMPTY (see CPPLib.h) it does, and the
++   host build needs these enums -- every BITFLAG type is otherwise undeclared. */
++#if defined(__sgi) || defined(GE_HOST_PORT)
+ /**
+  * Auto Generate Bitflag enums. (up to 32bit) - Unfortunatly we loose intellisense comments
+  * @param NAME: Name of bitflag
+  * @param a-af: bitfield names (will be appended to bitflag name for every field)
+  * @return Enum of bitflags
+  */
+-#define BITFLAG(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af)\
++/* Host port: call sites omit trailing arguments (IDO allowed it; standard C
++   does not, and GCC errors with "requires 33 arguments"). This variadic
++   front-end pads with 32 empty arguments so the fixed-arity implementation
++   below always receives a full set; the surplus lands in its trailing ... and
++   is discarded. IS_EMPTY then detects the padding exactly as it detected
++   genuinely-omitted fields before. */
++#ifdef __sgi
++/* IDO is C89: no variadic macros. It natively tolerates omitted trailing
++   arguments, so it calls the implementation directly. */
++#  define BITFLAG(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af) BITFLAG_I(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af)
++#else
++#  define BITFLAG(NAME, ...) BITFLAG_PAD(NAME, __VA_ARGS__, ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ,)
++#  define BITFLAG_PAD(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af, ...) BITFLAG_I(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af)
++#endif
++#define BITFLAG_I(NAME,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af)\
+ typedef enum NAME \
+ { /*\
+   */NAME ## _NONE,/*\
+@@ -1614,6 +1632,17 @@ typedef enum HIT_TYPE
+ 
+ #ifndef AIPARSE
+ #define IMAGE(NAME, SZ, HS, HT, F3, F4, F5, F6) IMAGE_##NAME,
++
++#ifdef GE_HOST_PORT
++/* GE_INIT_STMT: assign at startup what the N64 linker assigned at link time.
++   MODELSKELETON and MODELFILEHEADER below have initialisers that take
++   addresses, which a pinned 4-byte pointer member cannot hold statically.
++   See hostcompat/ge_init_ptr.h. */
++#include <ge_init_ptr.h>
++#else
++#define GE_INIT_STMT(stmt)
++#endif
++
+     typedef enum IMAGEIDS
+ {
+ #include <assets/images.def>
+@@ -4711,7 +4740,7 @@ typedef enum PROJECTILES
+  * @param NUMJOINTS: (Optional Integer) Number of Joints
+  */
+ #define New_ModelSkeleton(NAME, SKELSIZE, HASNAMES, NUMJOINTS) \
+-    ModelSkeleton SKELETON(##NAME##) = {                   \
++    ModelSkeleton SKELETON(NAME) = {                   \
+     IF_ELSE(IS_EMPTY(NUMJOINTS))                           \
+     (                                                      \
+         sizeof(JOINTLIST(NAME))/sizeof(ModelJoint)         \
+@@ -4720,7 +4749,7 @@ typedef enum PROJECTILES
+         NUMJOINTS                                          \
+     ),                                                     \
+     0,                                                     \
+-    JOINTLIST(##NAME##),                                   \
++    JOINTLIST(NAME),                                   \
+     SKELSIZE,                                              \
+     0                                                      \
+     IF(AND(DEFINED(DEBUG), BOOL(HASNAMES)))                \
+@@ -4729,7 +4758,17 @@ typedef enum PROJECTILES
+     )                                                      \
+     };
+ 
+-#define MODELSKELETON(NAME, NUMJOINTS, SKELSIZE) ModelSkeleton SKELETON( ## NAME ## ) = {NUMJOINTS, 0, JOINTLIST( ## NAME ## ), SKELSIZE, 0};
++#ifdef GE_HOST_PORT
++/* Host: JOINTLIST(NAME) is an address, and a pinned 4-byte pointer member
++   cannot hold one in a static initialiser. Left zero and assigned before
++   main(). 23 uses, all handled by this one edit.
++   See hostcompat/ge_init_ptr.h and PRIORITIES.md P3i. */
++#define MODELSKELETON(NAME, NUMJOINTS, SKELSIZE) \
++    ModelSkeleton SKELETON(NAME) = {NUMJOINTS, 0, 0, SKELSIZE, 0}; \
++    GE_INIT_STMT(SKELETON(NAME).Joints = JOINTLIST(NAME))
++#else
++#define MODELSKELETON(NAME, NUMJOINTS, SKELSIZE) ModelSkeleton SKELETON(NAME) = {NUMJOINTS, 0, JOINTLIST(NAME), SKELSIZE, 0};
++#endif
+ 
+ 
+ /**
+@@ -4754,7 +4793,7 @@ typedef enum PROJECTILES
+     (                                                                                                                                        \
+         ROOTNODE             /* Never Used */                                                                                                \
+     ),                                                                                                                                       \
+-    & ## SKELETON(SKELETONNAME),                                                                                                             \
++    &SKELETON(SKELETONNAME),                                                                                                             \
+     IF_ELSE(IS_EMPTY(SWITCHES))                                                                                                              \
+     (                                                                                                                                        \
+         0                                                                                                                                    \
+@@ -4803,19 +4842,35 @@ typedef enum PROJECTILES
+     };
+ 
+ #if defined(VERSION_EU)
++#ifdef GE_HOST_PORT
++/* Host: ROOTNODE/SKELETON/SWITCHES are addresses -- see MODELSKELETON above. */
++#define MODELFILEHEADER(NAME, ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES) struct ModelFileHeader NAME ## _header = {0, 0, 0, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES, 0}; \
++    GE_INIT_STMT(NAME ## _header.RootNode = (ModelNode *)(ROOTNODE)); \
++    GE_INIT_STMT(NAME ## _header.Skeleton = (ModelSkeleton *)(SKELETON)); \
++    GE_INIT_STMT(NAME ## _header.Switches = (ModelNode **)(SWITCHES))
++#else
+ #define MODELFILEHEADER(NAME, ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES) struct ModelFileHeader NAME ## _header = {ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES, 0};
++#endif
++#else
++#ifdef GE_HOST_PORT
++/* Host: ROOTNODE/SKELETON/SWITCHES are addresses -- see MODELSKELETON above. */
++#define MODELFILEHEADER(NAME, ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES) struct ModelFileHeader NAME ## _header = {0, 0, 0, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES, 0, 0}; \
++    GE_INIT_STMT(NAME ## _header.RootNode = (ModelNode *)(ROOTNODE)); \
++    GE_INIT_STMT(NAME ## _header.Skeleton = (ModelSkeleton *)(SKELETON)); \
++    GE_INIT_STMT(NAME ## _header.Switches = (ModelNode **)(SWITCHES))
+ #else
+ #define MODELFILEHEADER(NAME, ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES) struct ModelFileHeader NAME ## _header = {ROOTNODE, SKELETON, SWITCHES, NUMSWITCHES, NUMMATRICES, BOUNDINGRADIUS, NUMRECORDS, NUMTEXTURES, 0, 0};
+ #endif
++#endif
+ 
+ #define CHRFILERECORD(NAME, SCALE, OFFSET, HASHEAD, ISMALE) \
+-    {&##NAME##_header, STR(C##NAME##Z), SCALE, OFFSET, HASHEAD, ISMALE},
++    {&NAME##_header, STR(C##NAME##Z), SCALE, OFFSET, HASHEAD, ISMALE},
+ 
+-#define GUNSTATS(NAME) & ## NAME ## _stats
++#define GUNSTATS(NAME) &NAME ## _stats
+ #define GUNFILERECORD(NAME, NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ) \
+-    { & ## NAME ## _header,STR(G## NAME ##Z), NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ},
++    { &NAME ## _header,STR(G## NAME ##Z), NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ},
+ #define SUIT_LFRECORD(NAME, NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ) \
+-    { & ## NAME ## _header,STR(C## NAME ##Z), NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ},
++    { &NAME ## _header,STR(C## NAME ##Z), NOMODEL, STATS, UPPERTEXTID, LOWERTEXTID, POSX, POSY, POSZ, XROT, YROT, WOCTEXT, EQUIPTEXT, EQUIPX, EQUIPY, EQUIPZ},
+ /**
+  * Define a New Item Record
+  * @param NAME:  Name of Model
+diff --git a/src/bondgame.h b/src/bondgame.h
+index e7dacc8..07859a8 100644
+--- a/src/bondgame.h
++++ b/src/bondgame.h
+@@ -5,6 +5,7 @@
+ #include <bondconstants.h>  // game constants
+ #include <bondtypes.h>      // game structs and types
+ 
++#ifdef TARGET_N64
+ extern u32 *_bssSegmentEnd;
+ 
+ extern u32 *_codeSegmentStart;
+@@ -16,14 +17,30 @@ extern u32 *_csegmentSegmentStart;
+ extern u32 *_csegmentSegmentEnd;
+ extern u32 *_cdataSegmentRomStart;
+ extern u32 *_cdataSegmentRomEnd;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ extern u32 *_inflateSegmentVaddrStart;
+ extern u32 *_inflateSegmentVaddrEnd;
++#ifdef TARGET_N64
+ extern u32 *_inflateSegmentRomStart;
+ extern u32 *_inflateSegmentRomEnd;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ extern u32 *_gameSegmentVaddrStart;
+ extern u32 *_gameSegmentVaddrEnd;
++#ifdef TARGET_N64
+ extern u32 *_gameSegmentRomStart;
+ extern u32 *_gameSegmentRomEnd;
+ 
+@@ -33,6 +50,13 @@ extern u32* _animation_dataSegmentEnd;
+ 
+ extern u32* _alt_startSegmentRomStart;
+ extern u32* _alt_startSegmentStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ extern u8 sp_boot[SP_BOOT_SZ];
+ extern u8 sp_rmon[SP_RMON_SZ];
+diff --git a/src/bondtypes.h b/src/bondtypes.h
+index 53fd4fa..824e860 100644
+--- a/src/bondtypes.h
++++ b/src/bondtypes.h
+@@ -24,11 +24,27 @@
+  */
+ #ifndef _BONDTYPES_H_
+ #define _BONDTYPES_H_
++
++#ifdef GE_HOST_PORT
++/* GE_N64PTR: 4-byte pointers inside structs that describe cartridge data, so
++   the host layout matches the N64's. Expands to nothing off the host path, so
++   the N64 token stream is unchanged. See hostcompat/ge_n64ptr.h. */
++#include <ge_n64ptr.h>
++#else
++#define GE_N64PTR
++#endif
++
+ #include <ultra64.h>
+ #include <bondconstants.h>
+ #include "snd.h"
++/* Host build only: chrobjdata.h uses record structs defined ~1380 lines
++   below (circular include). IDO keeps the ORIGINAL position -- moving an
++   include changes declaration order, and in a matching decompilation that
++   changes the ROM. */
++#ifdef TARGET_N64
+ #ifndef AIPARSE
+     #include "game/chrobjdata.h"
++#endif
+ #endif
+ 
+         /**
+@@ -245,7 +261,19 @@ typedef union
+             f32 f[3];
+         };
+     } coord3d;
+-#define New_Coord3d(x, y, z)            \
++/* Host port: call sites omit arguments entirely (e.g. New_Vector()), which IDO
++   accepted as "all fields empty" -- exactly what the IS_EMPTY checks below are
++   for. Standard C still requires the argument COUNT to match, so a variadic
++   front-end pads with empties and forwards to the original body unchanged. */
++#ifdef __sgi
++/* IDO: no variadic macros (C89). It tolerates omitted trailing
++   arguments natively, so it can call the implementation directly. */
++#  define New_Coord3d(x, y, z) New_Coord3d_I(x, y, z)
++#else
++#  define New_Coord3d(...) New_Coord3d_PAD(__VA_ARGS__, , , )
++#  define New_Coord3d_PAD(x, y, z, ...) New_Coord3d_I(x, y, z)
++#endif
++#define New_Coord3d_I(x, y, z)            \
+     {                                   \
+         IF_ELSE(IS_EMPTY(x))            \
+         (0)(x),                         \
+@@ -253,7 +281,15 @@ typedef union
+             IF_ELSE(IS_EMPTY(z))(0)(z)  \
+     }
+     typedef coord3d vec3d; //canononical name
+-#define New_Vector(x, y, z)        \
++#ifdef __sgi
++/* IDO: no variadic macros (C89). It tolerates omitted trailing
++   arguments natively, so it can call the implementation directly. */
++#  define New_Vector(x, y, z) New_Vector_I(x, y, z)
++#else
++#  define New_Vector(...) New_Vector_PAD(__VA_ARGS__, , , )
++#  define New_Vector_PAD(x, y, z, ...) New_Vector_I(x, y, z)
++#endif
++#define New_Vector_I(x, y, z)        \
+     {                              \
+         IF_ELSE(IS_EMPTY(x))(0)(x),\
+         IF_ELSE(IS_EMPTY(y))(0)(y),\
+@@ -482,8 +518,8 @@ typedef union
+ 
+     typedef struct StandFileHeader
+     {
+-        void *     unk1;
+-        StandTile *firstTile;
++        void * GE_N64PTR unk1;
++        StandTile * GE_N64PTR firstTile;
+         u8         unk2[];
+     } StandFileHeader;
+ 
+@@ -509,10 +545,10 @@ typedef union
+     typedef struct StandFileFooter
+     {
+         char  strictstring[8];
+-        void *unk3;
+-        void *unk4;
+-        void *unk5;
+-        void *unk6;
++        void * GE_N64PTR unk3;
++        void * GE_N64PTR unk4;
++        void * GE_N64PTR unk5;
++        void * GE_N64PTR unk6;
+     } StandFileFooter;
+ 
+     typedef s32 (*standTileLocusCallback_A_t)(struct StandTile *, struct StandTileLocusCallbackRecord *);
+@@ -539,7 +575,7 @@ typedef union
+ 
+     typedef struct BetaStandTile
+     {
+-        const char               *id;
++        const char               * GE_N64PTR id;
+         StandTileHeaderMid        headerMid;
+         u16                       betaUnknown;
+         BetaStandTileHeaderTail   hdrTail;
+@@ -578,10 +614,10 @@ typedef union
+         u16 unk04; // number of frames in the animation
+         u8 unk06;
+         u8 unk07; // bit 0 is a loop flag: 0 means freeze anim at end, 1 means loop anim
+-        ModelAnimBitField *bitDescriptors; // 0x08
++        ModelAnimBitField * GE_N64PTR bitDescriptors; // 0x08
+         u16 unk0C;
+         u16 unk0E;
+-        u8  *bitStream; // 0x10
++        u8  * GE_N64PTR bitStream; // 0x10
+         s32 unk14;
+         s32 unk18;
+         s32 unk1c;
+@@ -686,10 +722,10 @@ typedef union
+                 s16 t; /* 0xa */
+             };
+ 
+-            struct Vertex *LinkedTo;
++            struct Vertex * GE_N64PTR LinkedTo;
+ 
+             /* Collision vertices only: points to related model node. */
+-            void *CollisionRelatedNode; /* 0x8 */
++            void * GE_N64PTR CollisionRelatedNode; /* 0x8 */
+         };
+ 
+         union
+@@ -786,11 +822,11 @@ typedef union
+     {
+         //u8 UseAdditionalMatrices; //1 = group use MatrixID1 also. not actually used
+         u16                  Opcode; /*0x00*/
+-        union ModelRoData    *Data;   /*0x04 Node Data*/
+-        struct ModelNode     *Parent; /*0x08*/
+-        struct ModelNode     *Next;   /*0x0c*/
+-        struct ModelNode     *Prev;   /*0x10*/
+-        struct ModelNode     *Child;  /*0x14*/
++        union ModelRoData    * GE_N64PTR Data;   /*0x04 Node Data*/
++        struct ModelNode     * GE_N64PTR Parent; /*0x08*/
++        struct ModelNode     * GE_N64PTR Next;   /*0x0c*/
++        struct ModelNode     * GE_N64PTR Prev;   /*0x10*/
++        struct ModelNode     * GE_N64PTR Child;  /*0x14*/
+     } ModelNode;
+ 
+ 
+@@ -806,7 +842,7 @@ typedef union
+             u8   NumEntries; /*0x00*/
+             u8   unk01;      /*0x01*/
+             u16  unk02;      /*0x02*/
+-            u8  *unk04;      /*0x04*/
++            u8  * GE_N64PTR unk04;      /*0x04*/
+         } ModelRoData_Child;
+ 
+         typedef struct ModelRoData_Child_Vtx
+@@ -844,8 +880,8 @@ typedef union
+             u16 AnimPart;    /* 0x00 */
+             s16 MatrixIndex; /* 0x02 */
+             union {                                       
+-                struct ModelRoData_GroupRecord *FirstGroup;  /* 0x04 */ /*0x4 First group in tree*/
+-                ModelNode *FirstGroupNode;
++                struct ModelRoData_GroupRecord * GE_N64PTR FirstGroup;  /* 0x04 */ /*0x4 First group in tree*/
++                ModelNode * GE_N64PTR FirstGroupNode;
+             }; 
+ 
+             union
+@@ -910,8 +946,8 @@ typedef union
+                 };
+             };
+             union {                                             /*0x14*/
+-                struct ModelRoData_GroupRecord *ChildGroup;
+-                ModelNode *ChildGroupNode;
++                struct ModelRoData_GroupRecord * GE_N64PTR ChildGroup;
++                ModelNode * GE_N64PTR ChildGroupNode;
+             }; 
+             f32                           BoundingVolumeRadius; /*0x18*/
+         } ModelRoData_GroupRecord;
+@@ -927,10 +963,10 @@ typedef union
+          */
+         typedef struct ModelRoData_DisplayListRecord
+         {
+-            Gfx    *Primary;           /*0x0*/
+-            Gfx    *Secondary;         /*0x4*/ // optional
+-            void   *BaseAddr;          /*0x8*/
+-            Vertex *Vertices;          /*0xC*/
++            Gfx    * GE_N64PTR Primary;           /*0x0*/
++            Gfx    * GE_N64PTR Secondary;         /*0x4*/ // optional
++            void   * GE_N64PTR BaseAddr;          /*0x8*/
++            Vertex * GE_N64PTR Vertices;          /*0xC*/
+             u16     numVertices;       /*0x10*/
+             /*
+                 0x12 Type of pre-defined rendermode and combiner setup to use
+@@ -956,13 +992,13 @@ typedef union
+         {
+             // shares this structure with op07
+             s32                       NumChildren; /*0x00*/
+-            struct ModelRoData_Child *Children;    /*0x04*/
+-            struct Vertex            *Vertices;    /*0x08*/
+-            struct sImageTableEntry  *Images;      /*0x0C*/
++            struct ModelRoData_Child * GE_N64PTR Children;    /*0x04*/
++            struct Vertex            * GE_N64PTR Vertices;    /*0x08*/
++            struct sImageTableEntry  * GE_N64PTR Images;      /*0x0C*/
+             u8                        Data[400];   /*0x10*/
+ 
+             u32 unk1A0;     /*0x1A0*/
+-            void* BaseAddr; /*0x1A4*/
++            void* GE_N64PTR BaseAddr; /*0x1A4*/
+         } ModelRoData_Op05Record;
+ 
+         /**
+@@ -976,7 +1012,7 @@ typedef union
+             u32 unk08;
+             u32 unk0C;
+             u32 unk10;
+-            void* BaseAddr; /*0x14*/
++            void* GE_N64PTR BaseAddr; /*0x14*/
+         } ModelRoData_Op06Record;
+ 
+         /**
+@@ -985,19 +1021,19 @@ typedef union
+          */
+         typedef struct ModelRoData_Op07Record
+         {
+-            struct ModelNode* unk00;     /*0x00*/
+-            struct ModelNode* unk04;     /*0x04*/
++            struct ModelNode* GE_N64PTR unk00;     /*0x00*/
++            struct ModelNode* GE_N64PTR unk04;     /*0x04*/
+ 
+             // shares this structure with op05
+             s32                       NumChildren; /*0x08*/
+-            struct ModelRoData_Child *Children;    /*0x0C*/
+-            struct Vertex            *Vertices;    /*0x10*/
+-            struct sImageTableEntry  *Images;      /*0x14*/
++            struct ModelRoData_Child * GE_N64PTR Children;    /*0x0C*/
++            struct Vertex            * GE_N64PTR Vertices;    /*0x10*/
++            struct sImageTableEntry  * GE_N64PTR Images;      /*0x14*/
+             u8                        Data[400];   /*0x18*/
+ 
+             u16 unk1A8;      /*0x1A8*/
+             u16 RwDataIndex; /*0x1AA*/
+-            void* BaseAddr;
++            void* GE_N64PTR BaseAddr;
+         } ModelRoData_Op07Record;
+ 
+         typedef struct ModelRwData_Op07Record
+@@ -1015,7 +1051,7 @@ typedef union
+         {
+             f32        MinDistance; /*0x0 Switch in distance*/
+             f32        MaxDistance; /*0x4 Switch out distance*/
+-            ModelNode *Affects;     /*0x8 Affects this node (Must be child)*/
++            ModelNode * GE_N64PTR Affects;     /*0x8 Affects this node (Must be child)*/
+             u16        RwDataIndex; /*0xC*/
+             u16        reserved;    /*0xE padding*/
+         } ModelRoData_LODRecord;
+@@ -1034,8 +1070,8 @@ typedef union
+         {
+             coord3d    Point;       /*0x0*/
+             coord3d    Vector;      /*0xC*/
+-            ModelNode *leftChild;   /*0x18 back/first */
+-            ModelNode *rightChild;  /*0x1C front/last */
++            ModelNode * GE_N64PTR leftChild;   /*0x18 back/first */
++            ModelNode * GE_N64PTR rightChild;  /*0x1C front/last */
+             s16        reserved;    /*0x20 padding or u32*/
+             u16        RwDataIndex; /*0x22*/
+         } ModelRoData_BSPRecord;
+@@ -1069,7 +1105,7 @@ typedef union
+             f32 BoundingVolumeRadius; /* 0x40 */
+             u16 RwDataIndex;          /* 0x44 */
+             u16 unk46;                /* 0x46 */
+-            void *BaseAddr;           /* 0x48 */
++            void * GE_N64PTR BaseAddr;           /* 0x48 */
+         } ModelRoData_Op11Record;
+ 
+         typedef struct ModelRwData_Op11Record
+@@ -1085,7 +1121,7 @@ typedef union
+         {
+             coord3d Offset;      /*0x0*/
+             coord3d Size;        /*0xC*/
+-            void *  Image;       /*0x18*/
++            void * GE_N64PTR Image;       /*0x18*/
+             f32     Scale;       /*0x1c*/
+             u16     RwDataIndex; /*0x20*/
+             u16     reserved;    /*0x22 padding*/
+@@ -1106,15 +1142,15 @@ typedef union
+         {
+             coord2d pos;      /* 0x00 */
+             coord2d size;     /* 0x08 */
+-            void *image;      /* 0x10 */
++            void * GE_N64PTR image;      /* 0x10 */
+ 
+             union {           /* 0x14 */
+-                ModelRoData_HeaderRecord *Header;
+-                ModelNode *HeaderNode;
++                ModelRoData_HeaderRecord * GE_N64PTR Header;
++                ModelNode * GE_N64PTR HeaderNode;
+             };
+ 
+             f32 Scale;        /* 0x18 */
+-            void *BaseAddr;   /* 0x1c */
++            void * GE_N64PTR BaseAddr;   /* 0x1c */
+         } ModelRoData_ShadowRecord;
+ 
+         /**
+@@ -1168,7 +1204,7 @@ typedef union
+             s32        hitpart;     /* 0x00 */
+             f32        radiusSq;    /* 0x04 */
+             coord3d    pos;         /* 0x08 */
+-            ModelNode *othernode;   /* 0x14 */
++            ModelNode * GE_N64PTR othernode;   /* 0x14 */
+             f32        scale1;      /* 0x18 */
+             f32        scale2;      /* 0x1c */
+         } ModelRoData_Op17Record;
+@@ -1203,7 +1239,7 @@ typedef union
+          */
+         typedef struct ModelRoData_SwitchRecord
+         {
+-            ModelNode *Controls;    /*0x0 Which node to display (Must be Child)*/
++            ModelNode * GE_N64PTR Controls;    /*0x0 Which node to display (Must be Child)*/
+             u16        RwDataIndex; /*0x4*/
+             u16        reserved;    /*0x6 padding*/
+         } ModelRoData_SwitchRecord;
+@@ -1242,9 +1278,9 @@ typedef union
+         typedef struct ModelRoData_DisplayListPrimaryRecord
+         {
+             s32     numVertices; /*0x0*/
+-            Vertex *Vertices;    /*0x4*/
+-            Gfx    *Primary;     /*0x8*/
+-            void   *BaseAddr;    /*0xC*/
++            Vertex * GE_N64PTR Vertices;    /*0x4*/
++            Gfx    * GE_N64PTR Primary;     /*0x8*/
++            void   * GE_N64PTR BaseAddr;    /*0xC*/
+         } ModelRoData_DisplayListPrimaryRecord;
+ 
+         /**
+@@ -1268,16 +1304,16 @@ typedef union
+          */
+         typedef struct ModelRoData_DisplayList_CollisionRecord
+         {
+-            Gfx     *Primary;              /*0x0*/
+-            Gfx     *Secondary;            /*0x4*/    // optional
+-            Vertex  *Vertices;             /*0x8*/
++            Gfx     * GE_N64PTR Primary;              /*0x0*/
++            Gfx     * GE_N64PTR Secondary;            /*0x4*/    // optional
++            Vertex  * GE_N64PTR Vertices;             /*0x8*/
+             s16      numVertices;          /*0xC*/
+             s16      numCollisionVertices; /*0xE*/
+-            Vertex  *CollisionVertices;    /*0x10 Table of vertices with unique point in space (UV's and Colour are disregarded). */
+-            s16     *PointUsage;           /*0x14*/
++            Vertex  * GE_N64PTR CollisionVertices;    /*0x10 Table of vertices with unique point in space (UV's and Colour are disregarded). */
++            s16     * GE_N64PTR PointUsage;           /*0x14*/
+             s16      ModelType;            /*0x18*/
+             u16      RwDataIndex;          /*0x1A*/
+-            void    *BaseAddr;             /*0x1C*/
++            void    * GE_N64PTR BaseAddr;             /*0x1C*/
+ 
+         } ModelRoData_DisplayList_CollisionRecord;
+ 
+@@ -1367,28 +1403,28 @@ typedef union
+         {
+             short       numjoints; //Always at least 1 (root)
+             short       pad1;      //pad
+-            ModelJoint *Joints;
++            ModelJoint * GE_N64PTR Joints;
+             short       SkeletonSize;
+             short       pad2;
+ #ifdef DEBUG
+-            char      **JointNames;
++            char      ** GE_N64PTR JointNames;
+ #endif
+         } ModelSkeleton;
+ 
+         typedef struct ModelFileHeader
+         {
+-            ModelNode         *RootNode;             //possibly this is "root data"
+-            ModelSkeleton     *Skeleton;
++            ModelNode         * GE_N64PTR RootNode;             //possibly this is "root data"
++            ModelSkeleton     * GE_N64PTR Skeleton;
+             /* This is a pointer to a variable length array of pointers to modelnodes, but the array is followed by an s16 array of part numbers.*/
+-            ModelNode        **Switches;
++            ModelNode        ** GE_N64PTR Switches;
+             s16                numSwitches;          // c Number of "05"s, these link to positions/switches Note: Does not reflect number actually used
+             s16                numMatrices;          // Number of matrices used. (GE Name is LCase)
+             f32                BoundingVolumeRadius; // 10 radius from model center to frustrum edge before culling.
+             s16                numRecords;           // 14 used in runtime for number of records
+             s16                numtextures;          // 16 Number of textures in table
+-            ModelFileTextures *Textures;             // 18 offset to texture table
++            ModelFileTextures * GE_N64PTR Textures;             // 18 offset to texture table
+ #ifdef DEBUG
+-            char             **SwitchNames;
++            char             ** GE_N64PTR SwitchNames;
+ #endif
+ #if defined(VERSION_EU)
+ #else
+@@ -2933,7 +2969,7 @@ typedef union
+         */
+         struct DoorRecord *linkedDoor;
+ 
+-        Vertex*            unkcc; /*0xcc*/
++        Vertex*unkcc; /*0xcc*/
+ 
+         struct ModelRoData_BoundingBoxRecord bbox;
+ 
+@@ -3098,7 +3134,23 @@ typedef union
+     typedef struct CCTVRecord
+     {
+         inherits ObjectRecord;
+-        s32      pad; // lookpad
++        /* Renamed from `pad` for the host build: it collides with the
++           inherited ObjectRecord::pad once `inherits` is a real anonymous
++           member (102 duplicate-member errors from this one line).
++
++           MEASURED, NOT ASSUMED: renaming it unconditionally CHANGED THE ROM.
++           `arg1->pad` in setupCctv() resolved to this s32 at offset 0x80
++           (lw v0,128(s0)); with it renamed, the same expression silently
++           resolved to the inherited ObjectRecord::pad, an s16 at offset 6
++           (lh v0,6(s0)). One instruction, one object file, different ROM --
++           and it would still have compiled and "worked" on the host while
++           reading the wrong field. So the N64 name is left exactly as it was
++           and only the host build renames. Use CCTV_PAD() to read it. */
++#ifdef TARGET_N64
++        s32      pad;     /* original spelling -- do not change */
++#else
++        s32      lookpad; /* which is what its own comment called it anyway */
++#endif
+         Mtxf     unk84;
+         f32 unkC4;
+         f32 unkC8;
+@@ -3119,6 +3171,15 @@ typedef union
+         s32 unkF8;
+     } CCTVRecord;
+ 
++/* See the note inside CCTVRecord above. Expands to the identical token stream
++   on N64, so codegen is unchanged. */
++#ifdef TARGET_N64
++#define CCTV_PAD(p) ((p)->pad)
++#else
++#define CCTV_PAD(p) ((p)->lookpad)
++#endif
++
++
+     #define New_CCTVRecord(pad)                    \
+         {                                          \
+             New_PropDefHeaderRecord(6), 0, pad + 0 \
+@@ -3359,7 +3420,7 @@ typedef union
+         u16                     ID;
+         s16                     OffsetToObj; //offset from tag
+         struct TagObjectRecord *NextTag;
+-        ObjectRecord *          TaggedObject;
++        ObjectRecord *TaggedObject;
+     } TagObjectRecord;
+ #define New_TagObjectRecord(Object)                \
+     {                                              \
+@@ -3545,15 +3606,15 @@ typedef union
+         inherits PropDefHeaderRecord;
+         union
+         {
+-            struct DoorRecord*     door;
++            struct DoorRecord*door;
+             s32 Index1;
+         };
+         union
+         {
+-            struct ObjectRecord*   lock;
++            struct ObjectRecord*lock;
+             s32 Index2;
+         };
+-        struct LockDoorRecord* next;
++        struct LockDoorRecord*next;
+     } LockDoorRecord;
+     #define New_RenameObjectRecord(TagID)          \
+         {                                          \
+@@ -3566,7 +3627,7 @@ typedef union
+     typedef struct VehichleRecord
+     {
+         inherits    ObjectRecord;
+-        AIRecord *  ailist;       /*0x80*/
++        AIRecord *ailist;       /*0x80*/
+         u16         aioffset;     /*0x84*/
+         s16         aireturnlist; /*0x86*/
+         f32         speed;        /*0x88 ?*/
+@@ -3593,7 +3654,7 @@ typedef union
+     typedef struct AircraftRecord
+     {
+         inherits      ObjectRecord;
+-        AIRecord *    ailist;          /*0x80*/
++        AIRecord *ailist;          /*0x80*/
+         u16           aioffset;        /*0x84*/
+         s16           aireturnlist;    /*0x86*/
+         f32           rotoryrot;       /*0x88 changes when onscreen even after destruction*/
+@@ -4039,8 +4100,8 @@ typedef struct object_standard {
+     u16 presetID;
+     u32 flags1;
+     u32 flags2;
+-    void* ptrPOSData;
+-    void* ptrObjInstanceController;
++    void*ptrPOSData;
++    void*ptrObjInstanceController;
+     f32 runtime_MATRIX[4][4];
+     f32 xPOS;
+     f32 yPOS;
+@@ -4060,7 +4121,7 @@ typedef struct object_weapon {
+     u8 gun_pickup;
+     u8 linked_item;
+     s16 timer;
+-    void* ptr_linkeditem;
++    void*ptr_linkeditem;
+ } object_weapon;
+ 
+ 
+@@ -4209,7 +4270,7 @@ struct fontchar {
+     s32 height;
+     s32 width;
+     s32 kerningindex;
+-    u8 *pixeldata;
++    u8 * GE_N64PTR pixeldata;
+ };
+ 
+ struct font {
+@@ -4217,4 +4278,10 @@ struct font {
+ 	struct fontchar chars[94]; // can be 135 in PAL
+ };
+ 
++#ifndef TARGET_N64
++#ifndef AIPARSE
++    #include "game/chrobjdata.h"
++#endif
++#endif
++
+ #endif
+diff --git a/src/crash.c b/src/crash.c
+index 3a62ec1..cd6fc23 100644
+--- a/src/crash.c
++++ b/src/crash.c
+@@ -728,8 +728,22 @@ u32 * crashIndyGetReadBufferResourceId(void)
+  */
+ void * crashGetStackEnd(u32 sp, u32 tid)
+ {
++#ifdef TARGET_N64
+     void *localStackPointers1[STACK_POINTER_COUNT] = g_StackPtrs1;
++#else
++            /* Host: IDO accepts an array as an initializer (a copy).
++               Standard C has no such initializer -- the copy is written out. */
++    void *localStackPointers1[STACK_POINTER_COUNT];
++    { int _i; for (_i = 0; _i < (STACK_POINTER_COUNT); _i++) localStackPointers1[_i] = g_StackPtrs1[_i]; }
++#endif
++#ifdef TARGET_N64
+     void *localStackPointers2[STACK_POINTER_COUNT] = g_StackPtrs2;
++#else
++            /* Host: IDO accepts an array as an initializer (a copy).
++               Standard C has no such initializer -- the copy is written out. */
++    void *localStackPointers2[STACK_POINTER_COUNT];
++    { int _i; for (_i = 0; _i < (STACK_POINTER_COUNT); _i++) localStackPointers2[_i] = g_StackPtrs2[_i]; }
++#endif
+     void *p2;
+     void *p1;
+ 
+@@ -766,7 +780,14 @@ void * crashGetStackEnd(u32 sp, u32 tid)
+  */
+ void * crashGetStackStart(u32 sp, u32 tid)
+ {
++#ifdef TARGET_N64
+     void *localStackPointers3[STACK_POINTER_COUNT] = g_StackPtrs3;
++#else
++            /* Host: IDO accepts an array as an initializer (a copy).
++               Standard C has no such initializer -- the copy is written out. */
++    void *localStackPointers3[STACK_POINTER_COUNT];
++    { int _i; for (_i = 0; _i < (STACK_POINTER_COUNT); _i++) localStackPointers3[_i] = g_StackPtrs3[_i]; }
++#endif
+     void *p;
+ 
+     if ((s32)tid <= (s32)0 || (u32)tid > (u32)STACK_POINTER_COUNT)
+diff --git a/src/game/bg.c b/src/game/bg.c
+index 858c35e..9d03b59 100644
+--- a/src/game/bg.c
++++ b/src/game/bg.c
+@@ -20,6 +20,7 @@
+ #include "stan.h"
+ #include "explosion.h"
+ #include "bgroomtrans.h"
++#include "ge_gbi_compat.h"
+ 
+ 
+ #define BG_STACK_SIZE 20
+@@ -226,12 +227,33 @@ struct levelentry levelinfotable[] = {
+ u32 D_8004481C[] = {0x1000100, 0};
+ 
+ //D:80044824
++#ifdef TARGET_N64
+ s_specialportal specialportalarray[] = {
+     {0x03,
+         {0x2C,0x2E,0x32, 0x37,0x3E,0x3F,0x4E, 0x56,0x59,0x5D,0x72, 0x76,0x79,0x7A,0xFF}},
+     {0x11,
+         {0x00,0x3A,0xFF}}
+ };
++#else
++/*
++ * Host: this is a variable-stride table -- s_specialportal ends in a flexible
++ * array member, so each entry is a different size and the "array" is really a
++ * byte stream (levelid, portal ids..., 0xFF terminator, repeat). IDO accepts
++ * initializing a flexible array member inside an array of structs; standard C
++ * does not, and there is no struct spelling that expresses it.
++ *
++ * Written as the byte stream it already is. Every member is u8 and the struct
++ * has alignment 1, so these are the same 20 bytes in the same order -- and the
++ * only reader, bgSpecialPortal() below, does `ptr = (u8 *)specialportalarray`
++ * and walks it byte-wise regardless.
++ */
++u8 specialportalarray[] = {
++    0x03,
++        0x2C,0x2E,0x32, 0x37,0x3E,0x3F,0x4E, 0x56,0x59,0x5D,0x72, 0x76,0x79,0x7A,0xFF,
++    0x11,
++        0x00,0x3A,0xFF
++};
++#endif
+ 
+ /**
+  * Bond's current room.
+@@ -2233,7 +2255,20 @@ void roomsHandleStateDebugging(void)
+ 
+ u32 bgDecompress(u8* source, u8 *target)
+ {
++/*
++ * GE_HOST_PORT: the Huffman pool is sized in BYTES for an 8-byte `struct huft`.
++ * That union holds a `struct huft *`, so the entry is 8 bytes on the N64 and
++ * 16 on a 64-bit host -- the same entries then need twice the space and
++ * silently overrun this array. Scaled by the real entry size so the ENTRY count
++ * is what stays fixed, which is the thing the decompressor actually bounds.
++ * The N64 declaration below is untouched, so `make` is unaffected.
++ * See patches/HOST-PORT-PATCHES.md 17.
++ */
++#ifdef GE_HOST_PORT
++    u8 buffer[0x2100 * (sizeof(void *) / 4)];
++#else
+     u8 buffer[0x2100];
++#endif
+     return decompressdata(source, target, buffer);
+ }
+ 
+@@ -2767,9 +2802,9 @@ void bgBuildRoomVtxBounds(s32 roomID)
+     cmdindex = 0;
+     numpoints = 0;
+ 
+-    while (gdl[cmdindex].dma.cmd != G_ENDDL)
++    while (GFX_CMD(&gdl[cmdindex]) != G_ENDDL)
+     {
+-        if (gdl[cmdindex].dma.cmd == G_VTX) 
++        if (GFX_CMD(&gdl[cmdindex]) == G_VTX) 
+         {
+             numpoints++;
+         }
+@@ -2791,9 +2826,9 @@ void bgBuildRoomVtxBounds(s32 roomID)
+     numpoints = 0;
+     cmdindex = 0;
+ 
+-    while (gdl[cmdindex].dma.cmd != G_ENDDL)
++    while (GFX_CMD(&gdl[cmdindex]) != G_ENDDL)
+     {
+-        if (gdl[cmdindex].dma.cmd == G_VTX)
++        if (GFX_CMD(&gdl[cmdindex]) == G_VTX)
+         {
+             point = &points[numpoints];
+ 
+@@ -2805,9 +2840,9 @@ void bgBuildRoomVtxBounds(s32 roomID)
+                 points[numpoints].max[i] = -0x8000;
+             }
+ 
+-            numvertices = ((gdl[cmdindex].dma.par >> 4) & 0xf) + 1;
++            numvertices = ((GFX_DMA_PAR(&gdl[cmdindex]) >> 4) & 0xf) + 1;
+ 
+-            vtx = (Vtx *)(SEGMENT_OFFSET(gdl[cmdindex].dma.addr) + (u32)vertices);
++            vtx = (Vtx *)(SEGMENT_OFFSET(GFX_DMA_ADDR(&gdl[cmdindex])) + (u32)vertices);
+ 
+             for (i = 0; i < numvertices; i++)
+             {
+@@ -5107,7 +5142,11 @@ s32 bgGetPortalBetweenRooms(s32 room1, s32 room2, coord3d *arg2, coord3d *arg3)
+     s32 portalIndex = -1;
+ 
+     #ifndef DEBUG
+-        #define osSyncPrintf(x)
++        #ifdef __sgi
++#define osSyncPrintf()
++#else
++#define osSyncPrintf(...)
++#endif
+     #endif
+ 
+     for (i = 0; g_BgPortals[i].offset_portal != NULL; i++)
+diff --git a/src/game/chraction.c b/src/game/chraction.c
+index efe9d51..913ca64 100644
+--- a/src/game/chraction.c
++++ b/src/game/chraction.c
+@@ -2482,7 +2482,14 @@ bool handles_shot_actors(ChrRecord *self, s32 hitpart, coord3d *vector, s32 weap
+         }
+         else //steel helmate - ricochet
+         {
+-            s16 mrs[3] = metal_ricochet_SFX;
++#ifdef TARGET_N64
++            s16 mrs[3] = metal_ricochet_SFX;  /* IDO copies the array; needed for matching */
++#else
++            /* Host: `s16 mrs[3] = <array>` is not a valid C initializer. mrs is
++               only ever read (mrs[randomGetNext() % 3U]), so aliasing the
++               original instead of copying it is behaviourally identical. */
++            s16 *mrs = metal_ricochet_SFX;
++#endif
+             ALSoundState * p = sndPlaySfx((struct ALBankAlt_s *)g_musicSfxBufferPtr, mrs[randomGetNext() % 3U], NULL);
+             chrobjSndCreatePostEventDefault(p, &self->prop->pos);
+         }
+diff --git a/src/game/chrai.h b/src/game/chrai.h
+index a3a65c1..de2fb8c 100644
+--- a/src/game/chrai.h
++++ b/src/game/chrai.h
+@@ -186,38 +186,53 @@ struct roomproplistblock
+ 
+ extern struct SetupPtrs g_SetupPtrs;
+ 
+-extern u32 monAnimRadarSub1[];
+-extern u32 monAnimRadarSub2[];
+-extern u32 monAnimRadarSub3[];
+-extern u32 monAnim0BRadar[];
+-extern u32 monAnim0CSpinningCube[];
+-extern u32 monAnim17RandImageEffect[];
+-extern u32 monRandEffectChanceSHUTTLE1[];
+-extern u32 monRandEffectChanceSHUTTLE2[];
+-extern u32 monRandEffectChanceEARTHFULL1[];
+-extern u32 monRandEffectChanceEARTHFULL2[];
+-extern u32 monRandEffectChanceBLUESTARS[];
+-extern u32 monRandEffectChanceGALAXY1[];
+-extern u32 monRandEffectChanceGALAXY2[];
+-extern u32 monRandEffectChanceEARTHTEXT[];
+-extern u32 monRandEffectChanceTARGETEARTH[];
+-extern u32 monRandEffectChanceGALAXY3[];
+-extern u32 monRandChanceScrollOrZoomRandRGBN[];
++/* AI/monitor script tables hold either a small opcode or a POINTER to another
++   script (see MONJUMPTO). u32 is correct on N64, where pointers are 32-bit and
++   the linker resolves &table as a relocation. On a 64-bit host that same
++   initializer is a 64->32 truncation, which is not computable at load time --
++   59 errors in propobj.c.
++
++   uintptr_t is the precise type: "an integer that can hold a pointer". On N64
++   ultratypes.h makes it u32, so the matching ROM build is byte-identical; on a
++   host it is 64-bit and the address fits with no truncation. */
++#ifdef TARGET_N64
++typedef u32 MonScriptWord;        /* identical to the original u32 tables */
++#else
++typedef uintptr_t MonScriptWord;  /* host: must hold a 64-bit address */
++#endif
++
++extern MonScriptWord monAnimRadarSub1[];
++extern MonScriptWord monAnimRadarSub2[];
++extern MonScriptWord monAnimRadarSub3[];
++extern MonScriptWord monAnim0BRadar[];
++extern MonScriptWord monAnim0CSpinningCube[];
++extern MonScriptWord monAnim17RandImageEffect[];
++extern MonScriptWord monRandEffectChanceSHUTTLE1[];
++extern MonScriptWord monRandEffectChanceSHUTTLE2[];
++extern MonScriptWord monRandEffectChanceEARTHFULL1[];
++extern MonScriptWord monRandEffectChanceEARTHFULL2[];
++extern MonScriptWord monRandEffectChanceBLUESTARS[];
++extern MonScriptWord monRandEffectChanceGALAXY1[];
++extern MonScriptWord monRandEffectChanceGALAXY2[];
++extern MonScriptWord monRandEffectChanceEARTHTEXT[];
++extern MonScriptWord monRandEffectChanceTARGETEARTH[];
++extern MonScriptWord monRandEffectChanceGALAXY3[];
++extern MonScriptWord monRandChanceScrollOrZoomRandRGBN[];
+ extern u32 D_80031B10[];
+-extern u32 monRandChanceScrollOrZoomRed[];
+-extern u32 monRandChanceScrollOrZoomGreen[];
+-extern u32 monRandChanceScrollOrZoomBlue[];
+-extern u32 monRandChanceScrollOrZoom[];
+-extern u32 monAnim27RandomEffectScrollRight[];
+-extern u32 monAnim28RandomEffectScrollUpFast[];
+-extern u32 monAnim29RandomEffectScrollUp[];
+-extern u32 monAnim2ARandEffectScrollZoom1[];
+-extern u32 monAnim2ARandEffectScrollZoom2[];
+-extern u32 monAnim2CRandEffectWaitRoute[];
+-extern u32 monAnim2DRandEffectFlash[];
+-extern u32 monAnim00Bond[];
+-extern u32 monAnim34[];
+-extern u32 monAnim35Taser[];
++extern MonScriptWord monRandChanceScrollOrZoomRed[];
++extern MonScriptWord monRandChanceScrollOrZoomGreen[];
++extern MonScriptWord monRandChanceScrollOrZoomBlue[];
++extern MonScriptWord monRandChanceScrollOrZoom[];
++extern MonScriptWord monAnim27RandomEffectScrollRight[];
++extern MonScriptWord monAnim28RandomEffectScrollUpFast[];
++extern MonScriptWord monAnim29RandomEffectScrollUp[];
++extern MonScriptWord monAnim2ARandEffectScrollZoom1[];
++extern MonScriptWord monAnim2ARandEffectScrollZoom2[];
++extern MonScriptWord monAnim2CRandEffectWaitRoute[];
++extern MonScriptWord monAnim2DRandEffectFlash[];
++extern MonScriptWord monAnim00Bond[];
++extern MonScriptWord monAnim34[];
++extern MonScriptWord monAnim35Taser[];
+ extern WeaponObjRecord* proxy_mine_table[30];
+ extern f32 gasTimeToFullOpacity;
+ extern u32 gasDoesDamageFlag;
+diff --git a/src/game/chraidata.c b/src/game/chraidata.c
+index 1e9f186..08ac692 100644
+--- a/src/game/chraidata.c
++++ b/src/game/chraidata.c
+@@ -199,6 +199,11 @@ u8 m_IdleAnimations[] = {
+         /*DEFAULT*/,,
+             PlayAnimation(ANIM_yawning         , 0, 193, ANIM_IDLE_POSE_WHEN_COMPLETE | ANIM_PLAY_SFX, ANIM_DEFAULT_INTERPOLATION)
+             BREAK,
++    
++        /* Padded to SWITCH's declared 16-case arity. IDO let call sites omit
++           trailing arguments; standard C does not. Empty cases expand to
++           nothing, so the emitted bytes -- and the ROM -- are unchanged. */
++        ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+     )
+ #endif
+     Return()
+@@ -246,6 +251,11 @@ u8 m_BashKeyboard[] = {
+         /*DEFAULT*/,,
+             PlayAnimation(ANIM_keyboard_right_hand1, 0, 69, 0x00, ANIM_DEFAULT_INTERPOLATION)
+             BREAK,
++    
++        /* Padded to SWITCH's declared 16-case arity. IDO let call sites omit
++           trailing arguments; standard C does not. Empty cases expand to
++           nothing, so the emitted bytes -- and the ROM -- are unchanged. */
++        ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+     )
+ 
+     Return()
+@@ -322,7 +332,12 @@ u8 m_AttackBond[] = {
+                    TRYFiringRoll,
+                ,,
+                    TRYThrowingGrenade                 /* attempt to throw grenade, depends on chr->grenadeprob value */
+-           )
++           
++        /* Padded to SWITCH's declared 16-case arity. IDO let call sites omit
++           trailing arguments; standard C does not. Empty cases expand to
++           nothing, so the emitted bytes -- and the ROM -- are unchanged. */
++        ,,,,,,,,,,,,,,,,,,,,,,,,
++    )
+     #else
+     IFMyFlags2Has(FLAGS2_DONT_POINT_AT_BOND, lblNext) /* if guard already pointed at bond */
+     IFNewRandomGreaterThan(32, lblNext)               /* 12.5% chance of pointing to bond */
+@@ -637,7 +652,12 @@ u8 m_RunToBondPersistent[] = {
+                     TRYSidestepping,
+                 /*DEFAULT*/,,
+                     TRYThrowingGrenade,
+-            )/*lblDone*/
++            
++        /* Padded to SWITCH's declared 16-case arity. IDO let call sites omit
++           trailing arguments; standard C does not. Empty cases expand to
++           nothing, so the emitted bytes -- and the ROM -- are unchanged. */
++        ,,,,,,,,,,,,,,,,,,,,,,,
++    )/*lblDone*/
+         #endif
+             IFICouldSeeBond(lblNext)
+             GotoNext(lblRunning)
+diff --git a/src/game/deb_loadallmodels.c b/src/game/deb_loadallmodels.c
+index fca63aa..95a140f 100644
+--- a/src/game/deb_loadallmodels.c
++++ b/src/game/deb_loadallmodels.c
+@@ -11,7 +11,15 @@
+ #include <macro.h>
+ 
+ #ifndef DEBUG
+-    #define osSyncPrintf()
++    #ifdef __sgi
++        #define osSyncPrintf()   /* IDO: C89, no variadic macros; it tolerates the extra args itself */
++#else
++        #ifdef __sgi
++#define osSyncPrintf()
++#else
++#define osSyncPrintf(...)
++#endif
++#endif
+ #endif
+ 
+ //i belong in a header, probably to another file
+diff --git a/src/game/debug_camera.c b/src/game/debug_camera.c
+index 0379498..43e499a 100644
+--- a/src/game/debug_camera.c
++++ b/src/game/debug_camera.c
+@@ -8,7 +8,15 @@
+ #include "fr.h"
+ 
+ #ifndef DEBUG
+-    #define osSyncPrintf()
++    #ifdef __sgi
++        #define osSyncPrintf()   /* IDO: C89, no variadic macros; it tolerates the extra args itself */
++#else
++        #ifdef __sgi
++#define osSyncPrintf()
++#else
++#define osSyncPrintf(...)
++#endif
++#endif
+ #endif
+ 
+ // bss
+diff --git a/src/game/debugmenu_handler.c b/src/game/debugmenu_handler.c
+index 0d0150c..570364d 100644
+--- a/src/game/debugmenu_handler.c
++++ b/src/game/debugmenu_handler.c
+@@ -5,7 +5,15 @@
+ #include <fr.h>
+ 
+ #ifndef DEBUG
+-    #define osSyncPrintf()
++    #ifdef __sgi
++        #define osSyncPrintf()   /* IDO: C89, no variadic macros; it tolerates the extra args itself */
++#else
++        #ifdef __sgi
++#define osSyncPrintf()
++#else
++#define osSyncPrintf(...)
++#endif
++#endif
+ #endif
+ #if defined(LEFTOVERDEBUG)
+ 
+diff --git a/src/game/explosion.c b/src/game/explosion.c
+index d80769b..94f3df6 100644
+--- a/src/game/explosion.c
++++ b/src/game/explosion.c
+@@ -1460,7 +1460,16 @@ u8 explosionChrpropSmokeTick(PropRecord* prop)
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern Gfx globalDL_0x000;
++#endif
+ 
+ /***
+  * NTSC address 0x7F09F03C.
+@@ -1703,7 +1712,16 @@ void explosionUpdateFlyingParticles(void)
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern Gfx globalDL_0xa50;
++#endif
+ 
+ /***
+  * NTSC address 0x7F0A0034.
+diff --git a/src/game/front.c b/src/game/front.c
+index 0ac962f..32f0631 100644
+--- a/src/game/front.c
++++ b/src/game/front.c
+@@ -1,4 +1,7 @@
+ #include <os_extension.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#endif
+ #include <assets/oddtextures.h>
+ #include "assets/image_externs.h"
+ #include <ultra64.h>
+@@ -1493,7 +1496,17 @@ Gfx *display_aligned_white_text_to_screen(Gfx *dl, s32 arg1, s32 arg2, s32 halig
+     x = arg1 - ((s32) (halign * sp48) / 2);
+     y = arg2 - ((s32) (valign * sp4C) / 2);
+ 
++#ifdef GE_HOST_PORT
++    /* arg6/arg7 are declared s32 but carry `struct fontchar *` and
++       `struct font *`. RDRAM addresses have the top bit set, so passing them
++       straight into pointer parameters sign-extends them. */
++    return textRender(dl, &x, &y, text,
++                      GE_PTR(struct fontchar *, arg6),
++                      GE_PTR(struct font *, arg7),
++                      -1, viGetX(), viGetY(), 0, 0);
++#else
+     return textRender(dl, &x, &y, text, arg6, arg7, -1, viGetX(), viGetY(), 0, 0);
++#endif
+ }
+ 
+ 
+@@ -2402,7 +2415,15 @@ s32 interface_menu05_fileselect(void)
+         frontChangeMenu(MENU_MODE_SELECT, FALSE);
+         setCursorPOSforMode(0);
+ 
+-        return;
++#ifdef TARGET_N64
++        return;   /* bare return from an s32 function -- IDO allowed it, and
++                     changing it would change the ROM */
++#else
++        /* Host: clang makes this a hard error. The only caller
++           (MENU_FILE_SELECT, ~line 8544) discards the result, so the value is
++           immaterial -- what matters is that the N64 path above is untouched. */
++        return 0;
++#endif
+     }
+ 
+     // Change to the legal screen if 30 seconds of no input have elapsed
+diff --git a/src/game/image.c b/src/game/image.c
+index a29470f..f581305 100644
+--- a/src/game/image.c
++++ b/src/game/image.c
+@@ -1,4 +1,8 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#include <ge_swap_util.h>
++#endif
+ #include "bondconstants.h"
+ #include "image.h"
+ #include "image_bank.h"
+@@ -157,7 +161,20 @@ s32 texInflateZlib(u8 *src, u8 *dst, s32 arg2, s32 forcenumimages, struct texpoo
+     s32 j;
+     s32 unused;
+     u8 scratch2[0x800];
++/*
++ * GE_HOST_PORT: the Huffman pool is sized in BYTES for an 8-byte `struct huft`.
++ * That union holds a `struct huft *`, so the entry is 8 bytes on the N64 and
++ * 16 on a 64-bit host -- the same entries then need twice the space and
++ * silently overrun this array. Scaled by the real entry size so the ENTRY count
++ * is what stays fixed, which is the thing the decompressor actually bounds.
++ * The N64 declaration below is untouched, so `make` is unaffected.
++ * See patches/HOST-PORT-PATCHES.md 17.
++ */
++#ifdef GE_HOST_PORT
++    u8 scratch[0x2100 * (sizeof(void *) / 4)];
++#else
+     u8 scratch[0x2100];
++#endif
+     u16 palette[0x100];
+ 
+     totalbytesout = 0;
+@@ -2323,7 +2340,12 @@ void texLoadFromDisplayList(Gfx *gdl, struct texpool *arg1)
+         // Look for GBI sequence: fd...... abcd....
+         if (bytes[0] == G_SETTIMG && bytes[4] == 0xab && bytes[5] == 0xcd)
+         {
++#ifdef GE_HOST_PORT
++            /* (s32)bytes sign-extends an RDRAM pointer. See ge_addr_compat.h. */
++            texLoad(GE_PTR(u32 *, GE_U32(bytes) + 4), arg1);
++#else
+             texLoad((u32 *)((s32)bytes + 4), arg1);
++#endif
+         }
+ 
+         bytes += 8;
+@@ -2331,7 +2353,15 @@ void texLoadFromDisplayList(Gfx *gdl, struct texpool *arg1)
+ }
+ 
+ 
++#ifdef TARGET_N64
+ extern u8 _imagesSegmentRomStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ /**
+  * Load and decompress a texture from ROM.
+@@ -2387,7 +2417,20 @@ void texLoad(s32 *updateword, struct texpool *pool)
+         pool = (struct texpool*) &ptr_texture_alloc_start;
+     }
+ 
++#ifdef GE_HOST_PORT
++    /*
++     * updateword points into the Globalimagetable segment, which is cartridge
++     * data and big-endian. Read natively it yields a garbage texture number and
++     * g_Textures[] is indexed far out of bounds -- which presented as a stack
++     * smash inside texLoad rather than as a bad index.
++     *
++     * Read, not swapped in place: line 2483 writes a HOST address back into this
++     * same word, so the buffer legitimately ends up mixed.
++     */
++    g_TexNumToLoad = geBE32(updateword) & 0xffff;
++#else
+     g_TexNumToLoad = *updateword & 0xffff;
++#endif
+     tex = texFindInPool(g_TexNumToLoad, pool);
+ 
+     if (tex == NULL)
+@@ -2400,8 +2443,32 @@ void texLoad(s32 *updateword, struct texpool *pool)
+         osWritebackDCacheAll();
+         osInvalDCache(alignedcompbuffer, DCACHE_SIZE);
+ 
++#ifdef GE_HOST_PORT
++        /*
++         * BITFIELD ALLOCATION ORDER -- a different problem from struct size.
++         *
++         * struct image_entry is nothing but bitfields:
++         *
++         *     u8  hitSound   : 4;
++         *     u32 hitTexture : 4;
++         *     u32 dataoffset : 24;
++         *
++         * Big-endian MIPS allocates them MSB-first, so the first word reads
++         * [hitSound][hitTexture][dataoffset] and `*(s32*)&entry & 0xFFFFFF` is
++         * exactly dataoffset. x86 allocates LSB-first, so the same expression
++         * returns hitSound | hitTexture | the LOW 16 bits of dataoffset.
++         *
++         * Measured: it produced a ROM offset of 0x11AFDF0 (past the end of a
++         * 12 MB cartridge) and a size of 388368 into a 4000-byte stack buffer.
++         * Reading the NAMED field is correct on both, because the compiler
++         * places it wherever its own ABI says.
++         */
++        thisoffset = (s32)g_Textures[g_TexNumToLoad].dataoffset;
++        nextoffset = (s32)g_Textures[g_TexNumToLoad + 1].dataoffset;
++#else
+         thisoffset = *((s32*)&g_Textures[g_TexNumToLoad]) & 0xFFFFFF;
+         nextoffset = (*((s32 *) (&g_Textures[g_TexNumToLoad + 1]))) & ((unsigned long) 0xFFFFFF);
++#endif
+ 
+         if (TRUE)
+         {
+diff --git a/src/game/image_bank.c b/src/game/image_bank.c
+index 32f46cc..3c1287d 100644
+--- a/src/game/image_bank.c
++++ b/src/game/image_bank.c
+@@ -82,7 +82,15 @@ struct sImageTableEntry *mpcharselimages;
+ struct sImageTableEntry *mpstageselimages;
+ 
+ 
++#ifdef TARGET_N64
+ extern u8* _GlobalimagetableSegmentRomStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ 
+ void texSetBitstring(s32 pos) {
+@@ -111,8 +119,24 @@ u32 texReadBits(s32 bitCount)
+ 
+ 
+ 
++#ifdef TARGET_N64
+ extern u32* _GlobalimagetableSegmentStart;
+ extern u32* _GlobalimagetableSegmentEnd;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern void* s_genericimage;
+ extern void* s_impactimages;
+ extern void* s_explosion_smokeimages;
+@@ -163,6 +187,7 @@ extern Gfx* globalDL_0x858;
+ extern Gfx* globalDL_0x900;
+ extern Gfx* globalDL_0x9a8;
+ extern Gfx* globalDL_0xa50;
++#endif
+ 
+ void texReset(void)
+ {
+diff --git a/src/game/initactorpropstuff.c b/src/game/initactorpropstuff.c
+index 33015f5..2a3eb2b 100644
+--- a/src/game/initactorpropstuff.c
++++ b/src/game/initactorpropstuff.c
+@@ -1,4 +1,8 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#include <ge_swap_util.h>
++#endif
+ #include "initactorpropstuff.h"
+ #include "initanitable.h"
+ #include "chr.h"
+@@ -108,7 +112,15 @@ s32 initResolveAnimGroupTable(struct weapon_firing_animation_table *animconfig)
+ 
+         do
+         {
++#ifdef GE_HOST_PORT
++            /* (s32)ptr_animation_table is negative -- RDRAM has the top bit set
++               -- so the sum sign-extends into 0xFFFFFFFF8xxxxxxx on the way back
++               into a pointer. See hostcompat/ge_addr_compat.h. */
++            config->anim.anim = GE_PTR(struct ModelAnimation *,
++                                       GE_U32(animoffset) + GE_U32(ptr_animation_table));
++#else
+             config->anim.anim = (struct ModelAnimation *)(((0, animoffset)) + ((s32)ptr_animation_table));
++#endif
+             endframe = floorFloatToInt(config->unk04);
+             angle16 = sub_GAME_7F0001F0(config->anim.anim, 0, endframe) & 0xffff;
+             duration = config->unk04;
+@@ -195,8 +207,27 @@ s32 initResolveAnimTable(struct StruckAnim *entries)
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/*
++ * Two host problems in one line, and this macro has nine users.
++ *
++ *  - `(s32)ptr_animation_table` is negative (RDRAM has the top bit set), so the
++ *    sum sign-extends into 0xFFFFFFFF8xxxxxxx on the way back into a pointer.
++ *  - the record it points at is still big-endian: it came straight off the
++ *    cartridge and only the ones reachable from animation_table_ptrs1/2 have
++ *    been swapped by expand_ani_table_entries. These are reached by OFFSET
++ *    instead, so they may not have been.
++ *
++ * geSwapOncePtr handles the second without swapping anything twice.
++ */
++#define ANIM_PTR(anim) \
++    ((ModelAnimation *)geSwapOncePtr(                                        \
++        GE_PTR(void *, GE_U32(&anim) + GE_U32(ptr_animation_table)),         \
++        geSwap_ModelAnimation))
++#else
+ #define ANIM_PTR(anim) \
+     ((ModelAnimation *)((s32)&anim + ((s32)ptr_animation_table)))
++#endif
+ 
+ #define ANIM_FRAC(anim) \
+     ((((f32)sub_GAME_7F000290(ANIM_PTR(anim), 0, ANIM_PTR(anim)->unk04 - 1)) * 0.10000001f) / \
+diff --git a/src/game/initanitable.c b/src/game/initanitable.c
+index d5cd44a..4672d4a 100644
+--- a/src/game/initanitable.c
++++ b/src/game/initanitable.c
+@@ -1,4 +1,9 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++/* geSwapOnce + the generated geSwap_ModelAnimation: the animation table
++   arrives from the cartridge big-endian. See src/host/ge_swap.h. */
++#include <ge_swap_util.h>
++#endif
+ #include <memp.h>
+ #include "initanitable.h"
+ #include "objecthandler.h"
+@@ -219,7 +224,15 @@ struct ModelAnimation *animation_table_ptrs2[] = {
+ };
+ 
+ 
++#ifdef TARGET_N64
+ extern u32 _animation_entriesSegmentRomStart[];
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ struct anim_entry
+ {
+@@ -230,6 +243,57 @@ struct anim_entry
+     s32 unk10;
+ };
+ 
++#ifdef GE_HOST_PORT
++/*
++ * GE_HOST_PORT: this walks animation_table_ptrs1, which is `s32[]` -- 32-bit
++ * OFFSETS -- through an `s32**`. On the N64 a pointer is 32 bits, so reading an
++ * element and stepping the cursor both move 4 bytes and the two views agree.
++ * On a 64-bit host they do not: each read takes 8 bytes and `var_v0++` skips a
++ * whole entry, so the walk reads garbage and advances through half the table.
++ *
++ * The sign is the second half of it. Every step goes through `s32`, and these
++ * are RDRAM addresses at 0x80000000 and up -- negative as s32, so the result
++ * sign-extends to 0xFFFFFFFF8xxxxxxx on the way back into a pointer. That is
++ * the same family as mempCheckMemflagTokens and the MonScriptWord tables, and
++ * it fails for exactly the half of RDRAM that has the top bit set.
++ *
++ * Rewritten over u32, which is what the table actually holds. The N64 version
++ * below is untouched, so `make` is unaffected.
++ * See patches/HOST-PORT-PATCHES.md 18.
++ */
++void expand_ani_table_entries(s32** arg0)
++{
++    u32 *var_v0;
++    u32  base = (u32)(uintptr_t)(&ptr_animation_table->data);
++
++    for (var_v0 = (u32 *)arg0; *var_v0 != 0; var_v0++) {
++        if (*var_v0 != 1u) {
++            /*
++             * The record is still exactly as it sat on the cartridge:
++             * big-endian. Swap it before reading any field out of it -- the
++             * arithmetic below reads unk08/unk10, and those are the fields.
++             *
++             * A record can be referenced from both index arrays, so this must
++             * happen once and only once; swapping twice restores the original
++             * bytes and would present as the swap layer doing nothing.
++             * See src/host/ge_swap.h.
++             */
++            geSwapOnce((unsigned char *)(uintptr_t)(base + *var_v0),
++                       geSwap_ModelAnimation);
++            *var_v0 = *var_v0 + base;
++            ((struct anim_entry *)(uintptr_t)*var_v0)->unk08 += (s32)base;
++            ((struct anim_entry *)(uintptr_t)*var_v0)->unk10 += (s32)base;
++        }
++    }
++
++    for (var_v0 = (u32 *)arg0; *var_v0 != 0; var_v0++) {
++        if (*var_v0 != 1u) {
++            *(s32 *)(uintptr_t)*var_v0 +=
++                (s32)(uintptr_t)&_animation_entriesSegmentRomStart;
++        }
++    }
++}
++#else
+ void expand_ani_table_entries(s32** arg0)
+ {
+     s32** var_v0;
+@@ -250,6 +314,7 @@ void expand_ani_table_entries(s32** arg0)
+         }
+     }
+ }
++#endif
+ 
+ void alloc_load_expand_ani_table(void)
+ {
+diff --git a/src/game/initexplosioncasing.c b/src/game/initexplosioncasing.c
+index b2ab5a8..648037f 100644
+--- a/src/game/initexplosioncasing.c
++++ b/src/game/initexplosioncasing.c
+@@ -4,7 +4,15 @@
+ #include "explosion.h"
+ 
+ #ifndef DEBUG
+-    #define osSyncPrintf()
++    #ifdef __sgi
++        #define osSyncPrintf()   /* IDO: C89, no variadic macros; it tolerates the extra args itself */
++#else
++        #ifdef __sgi
++#define osSyncPrintf()
++#else
++#define osSyncPrintf(...)
++#endif
++#endif
+ #endif
+ 
+ void alloc_explosion_smoke_casing_scorch_impact_buffers(void)
+diff --git a/src/game/language.c b/src/game/language.c
+index 4ee6fc4..3a6ae23 100644
+--- a/src/game/language.c
++++ b/src/game/language.c
+@@ -1,4 +1,8 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#include <ge_swap_util.h>
++#endif
+ #include <bondgame.h>
+ #include <memp.h>
+ #include "language.h"
+@@ -273,8 +277,16 @@ void langTick(void)
+ }
+ 
+ 
++#ifdef TARGET_N64
+ extern u8 _efontchardataSegmentRomStart;
+ extern u8 _jfontchardataSegmentRomStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ void romCopy(void *target, void *source, u32 size);
+ 
+ struct jpncharpixels *langGetJpnCharPixels(s32 codepoint)
+@@ -374,8 +386,21 @@ void langClearBank(s32 textBank) {
+  */
+ u8 * langGet(s32 slotID)
+ {
++#ifdef GE_HOST_PORT
++    /* g_LangBanks is `s32[45]` holding POINTERS. An RDRAM address has the top
++       bit set, so reading one back into a pointer sign-extends it. */
++    u32 * textbank_ptr = GE_PTR(u32 *, g_LangBanks[slotID >> 10]);
++#else
+     u32 * textbank_ptr = g_LangBanks[slotID >> 10]; /* get the text file bank ID index the text ptr table */
++#endif
++#ifdef GE_HOST_PORT
++    /* The bank is a language FILE, decompressed straight from the cartridge, so
++       its offset table is big-endian. Read, not swapped in place: the same
++       buffer is read again for every string. */
++    u32 textslot_offset = geBE32(&textbank_ptr[slotID & 0x03FF]);
++#else
+     u32 textslot_offset = textbank_ptr[slotID & 0x03FF]; /* load the textbank ptr table then get the slot's offset */
++#endif
+ 
+     u32 output_slot = textslot_offset; /* add the text slot offset to the base ptr to get the ptr to text file's slot */
+     output_slot += (u32)textbank_ptr;
+diff --git a/src/game/lightfixture.c b/src/game/lightfixture.c
+index b75779e..f9acaa9 100644
+--- a/src/game/lightfixture.c
++++ b/src/game/lightfixture.c
+@@ -66,6 +66,7 @@
+ #include <assets/image_externs.h>
+ #include <PR/gbi.h>
+ #include <gbi_extension.h>
++#include "ge_gbi_compat.h"
+ 
+ #define LIGHTFIXTURE_TABLE_MAX 0x64
+ #define DARKENED_LIGHT_TABLE_MAX 0x200
+@@ -177,12 +178,16 @@ Vtx *lightFindVertexBaseForTri(Gfx *gfx, s32 room_index)
+ {
+     Vtx * ret;
+ 
+-    while (gfx->dma.cmd != G_VTX )
++    while (GFX_CMD(gfx) != G_VTX )
+     { 
+         gfx--; 
+     }
+ 
++#ifdef TARGET_N64
+     ret = gfx->dma.addr;
++#else
++    ret = (void *)(uintptr_t)GFX_DMA_ADDR(gfx);
++#endif
+ 
+     if (((s32) ret & 0xFF000000) == 0x0E000000) 
+     {
+@@ -198,9 +203,9 @@ void extract_vertex_indices_from_triangle(Gfx* gfx, u32 tri_type, s32* idx1, s32
+     switch (tri_type) 
+     {
+         case 0:
+-            *idx1 = (s32) gfx->tri.tri.v[0] / 10;
+-            *idx2 = (s32) gfx->tri.tri.v[1] / 10;
+-            *idx3 = (s32) gfx->tri.tri.v[2] / 10;
++            *idx1 = (s32) GFX_TRI_V(gfx, 0) / 10;
++            *idx2 = (s32) GFX_TRI_V(gfx, 1) / 10;
++            *idx3 = (s32) GFX_TRI_V(gfx, 2) / 10;
+             break;
+         // unsure of how to cleanly access the below versions
+         case 1:
+@@ -541,7 +546,7 @@ void lightFixtureBreak(Gfx * hit_gfx, u32 tri_type, s32 room_index)
+          */
+         for (fixture_gfx = light_fixture_table[i].ptr_start_pertinent_DL; fixture_gfx < light_fixture_table[i].ptr_end_pertinent_DL; fixture_gfx++)
+         {
+-            if (fixture_gfx->dma.cmd == G_TRI1)
++            if (GFX_CMD(fixture_gfx) == G_TRI1)
+             {
+                 darken_tri1 = 0;
+  
+@@ -565,7 +570,7 @@ void lightFixtureBreak(Gfx * hit_gfx, u32 tri_type, s32 room_index)
+                     darken_triangle_in_room(fixture_gfx, 0, light_fixture_table[i].room_index);
+                 }
+             }
+-            else if (fixture_gfx->dma.cmd == G_TRI4)
++            else if (GFX_CMD(fixture_gfx) == G_TRI4)
+             {
+                 for (j = 0; j < 4; j++)
+                 {
+diff --git a/src/game/lv.c b/src/game/lv.c
+index 48ef126..5c37050 100644
+--- a/src/game/lv.c
++++ b/src/game/lv.c
+@@ -202,6 +202,7 @@ s32 g_DebugPortalsInputBuffer2 = 0;
+ s32 g_DebugPortalsInputBuffer3 = 0;
+ s32 g_DebugPortalsInputBuffer4 = 0;
+ 
++#ifdef TARGET_N64
+ extern s32 g_DebugPortalsInputBufferSource1;
+ extern s32 g_DebugPortalsInputBufferSource2;
+ extern s32 g_DebugPortalsInputBufferSource3;
+@@ -211,6 +212,25 @@ extern s32 g_DebugPortalsInputBufferSource4;
+ #pragma weak g_DebugPortalsInputBufferSource2 = g_DebugPortalsInputBuffer2
+ #pragma weak g_DebugPortalsInputBufferSource3 = g_DebugPortalsInputBuffer3
+ #pragma weak g_DebugPortalsInputBufferSource4 = g_DebugPortalsInputBuffer4
++#else
++/*
++ * Host: `#pragma weak A = B` makes A a weak alias of B -- one object under two
++ * names. GCC accepts it; clang creates the alias but then sees two entities
++ * with the same name in scope and rejects every use as "reference to X is
++ * ambiguous". Since the whole point is that they ARE the same object, the
++ * portable spelling of that is a macro. Placed BEFORE the externs so those
++ * become redeclarations of the real objects rather than new undefined symbols.
++ */
++#define g_DebugPortalsInputBufferSource1 g_DebugPortalsInputBuffer1
++#define g_DebugPortalsInputBufferSource2 g_DebugPortalsInputBuffer2
++#define g_DebugPortalsInputBufferSource3 g_DebugPortalsInputBuffer3
++#define g_DebugPortalsInputBufferSource4 g_DebugPortalsInputBuffer4
++
++extern s32 g_DebugPortalsInputBufferSource1;
++extern s32 g_DebugPortalsInputBufferSource2;
++extern s32 g_DebugPortalsInputBufferSource3;
++extern s32 g_DebugPortalsInputBufferSource4;
++#endif
+ 
+ /**
+  * Something debug related in the MP manage method.
+@@ -223,8 +243,16 @@ s16 g_DebugMpGameSoundFxIndex = 0;
+ s16 D_800483E6 = 0;
+ 
+ 
++#ifdef TARGET_N64
+ extern u8* _fontdlSegmentRomStart;
+ extern u8* _fontdlSegmentRomEnd;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ 
+ // forward declarations
+diff --git a/src/game/model.c b/src/game/model.c
+index 955b6a1..bcfc06c 100644
+--- a/src/game/model.c
++++ b/src/game/model.c
+@@ -1,4 +1,8 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#include <ge_swap_util.h>
++#endif
+ #include <memp.h>
+ #include "model.h"
+ #include "../rmon.h" /*<PR/rmon.h>*/
+@@ -5685,6 +5689,18 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+ 
+     while (node)
+     {
++#ifdef GE_HOST_PORT
++        /*
++         * The model file is cartridge data and arrives big-endian. Swap each
++         * node before ANY field of it is read -- including Opcode, which the
++         * next line uses to pick the record type.
++         *
++         * Once per node: this walker is re-entered for sub-trees and a node can
++         * be reached more than once, and swapping twice restores the original
++         * bytes. See src/host/ge_swap_util.h.
++         */
++        geSwapOnce(node, geSwap_ModelNode);
++#endif
+         u32 type = node->Opcode & 0xff;
+ 
+         PROMOTE(node->Data);
+@@ -5698,6 +5714,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_HEADER:
+                 {
+                     ModelRoData_HeaderRecord* rodata = &node->Data->Header;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_HeaderRecord);
++#endif
+                     PROMOTE(rodata->FirstGroup);
+                     break;
+                 }
+@@ -5705,6 +5724,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_GROUP:
+                 {
+                     ModelRoData_GroupRecord* rodata = &node->Data->Group;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_GroupRecord);
++#endif
+                     PROMOTE(rodata->ChildGroup);
+                     break;
+                 }
+@@ -5712,6 +5734,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP03:
+                 {
+                     ModelRoData_GroupRecord* rodata = &node->Data->Group;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_GroupRecord);
++#endif
+                     PROMOTE(rodata->ChildGroup);
+                     break;
+                 }
+@@ -5719,6 +5744,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_DL:
+                 {
+                     ModelRoData_DisplayListRecord* rodata = &node->Data->DisplayList;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_DisplayListRecord);
++#endif
+                     PROMOTE(rodata->Vertices);
+                     rodata->BaseAddr = (void *)fileramaddr;
+                     break;
+@@ -5727,6 +5755,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_DLCOLLISION:
+                 {
+                     ModelRoData_DisplayList_CollisionRecord* rodata = &node->Data->DisplayListCollisions;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_DisplayList_CollisionRecord);
++#endif
+                     PROMOTE(rodata->Vertices);
+                     PROMOTE(rodata->CollisionVertices);
+                     PROMOTE(rodata->PointUsage);
+@@ -5741,6 +5772,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP20:
+                 {
+                     ModelRoData_HeaderRecord* rodata = &node->Data->Header;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_HeaderRecord);
++#endif
+                     PROMOTE(rodata->FirstGroup);
+                     break;
+                 }
+@@ -5748,6 +5782,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP05:
+                 {
+                     ModelRoData_Op05Record* rodata = &node->Data->Op05;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_Op05Record);
++#endif
+ 
+                     // shared with op07
+                     PROMOTE(rodata->Children);
+@@ -5765,6 +5802,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP07:
+                 {
+                     ModelRoData_Op07Record* rodata = &node->Data->Op07;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_Op07Record);
++#endif
+                     PROMOTE(rodata->unk00);
+                     PROMOTE(rodata->unk04);
+ 
+@@ -5784,6 +5824,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP06:
+                 {
+                     ModelRoData_Op06Record* rodata = &node->Data->Op06;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_Op06Record);
++#endif
+                     rodata->BaseAddr = (void *)fileramaddr;
+                     break;
+                 }
+@@ -5791,6 +5834,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_LOD:
+                 {
+                     ModelRoData_LODRecord* rodata = &node->Data->LOD;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_LODRecord);
++#endif
+                     PROMOTE(rodata->Affects);
+                     node->Child = rodata->Affects;
+                     break;
+@@ -5799,6 +5845,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_SWITCH:
+                 {
+                     ModelRoData_SwitchRecord* rodata = &node->Data->Switch;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_SwitchRecord);
++#endif
+                     PROMOTE(rodata->Controls);
+                     break;
+                 }
+@@ -5806,6 +5855,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_BSP:
+                 {
+                     ModelRoData_BSPRecord* rodata = &node->Data->BSP;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_BSPRecord);
++#endif
+                     PROMOTE(rodata->leftChild);
+                     PROMOTE(rodata->rightChild);
+                     break;
+@@ -5814,6 +5866,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP17:
+                 {
+                     ModelRoData_GroupRecord* rodata = &node->Data->Group;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_GroupRecord);
++#endif
+                     PROMOTE(rodata->ChildGroup);
+                     break;
+                 }
+@@ -5821,6 +5876,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_OP11:
+                 {
+                     ModelRoData_Op11Record* rodata = &node->Data->Op11;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_Op11Record);
++#endif
+                     PROMOTE(rodata->unk0c[15]);
+                     rodata->BaseAddr = (void *)fileramaddr;
+                     break;
+@@ -5829,6 +5887,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_GUNFIRE:
+                 {
+                     ModelRoData_GunfireRecord* rodata = &node->Data->Gunfire;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_GunfireRecord);
++#endif
+                     PROMOTE(rodata->Image);
+                     rodata->BaseAddr = (void *)fileramaddr;
+                     break;
+@@ -5837,6 +5898,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_SHADOW:
+                 {
+                     ModelRoData_ShadowRecord* rodata = &node->Data->Shadow;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_ShadowRecord);
++#endif
+                     PROMOTE(rodata->image);
+                     PROMOTE(rodata->Header);
+                     rodata->BaseAddr = (void *)fileramaddr;
+@@ -5846,6 +5910,9 @@ void modelPromoteNodeOffsetsToPointers(ModelNode *node, u32 vma, u32 fileramaddr
+             case MODELNODE_OPCODE_DLPRIMARY:
+                 {
+                     ModelRoData_DisplayListPrimaryRecord* rodata = &node->Data->DisplayListPrimary;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_DisplayListPrimaryRecord);
++#endif
+                     PROMOTE(rodata->Vertices);
+                     rodata->BaseAddr = (void *)fileramaddr;
+                     break;
+@@ -6087,6 +6154,9 @@ void modelInitRwData(Model *model, ModelNode *startnode)
+                 if (1)
+                 {
+                     ModelRoData_LODRecord* rodata = &node->Data->LOD;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_LODRecord);
++#endif
+                     ModelRwData_LODRecord* rwdata = &modelGetNodeRwData(model, node)->LOD;
+                     rwdata->visible = FALSE;
+                     node->Child = rodata->Affects;
+@@ -6097,6 +6167,9 @@ void modelInitRwData(Model *model, ModelNode *startnode)
+                 if (1)
+                 {
+                     ModelRoData_SwitchRecord* rodata = &node->Data->Switch;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_SwitchRecord);
++#endif
+                     ModelRwData_SwitchRecord* rwdata = &modelGetNodeRwData(model, node)->Switch;
+                     rwdata->visible = TRUE;
+                     node->Child = rodata->Controls;
+@@ -6141,6 +6214,9 @@ void modelInitRwData(Model *model, ModelNode *startnode)
+                 if (1)
+                 {
+                     ModelRoData_DisplayList_CollisionRecord* rodata = &node->Data->DisplayListCollisions;
++#ifdef GE_HOST_PORT
++                    geSwapOnce(rodata, geSwap_ModelRoData_DisplayList_CollisionRecord);
++#endif
+                     ModelRwData_DisplayList_CollisionRecord* rwdata = &modelGetNodeRwData(model, node)->DisplayListCollisions;
+                     rwdata->Vertices = rodata->Vertices;
+                     rwdata->gdl = rodata->Primary;
+diff --git a/src/game/ob.c b/src/game/ob.c
+index 11caf31..d6fd385 100644
+--- a/src/game/ob.c
++++ b/src/game/ob.c
+@@ -36,7 +36,20 @@ s32 file_entry_max = OBJ_INDEX_END;
+ void load_resource(u8 *ptrdata, s32 bytes,  fileentry *srcfile,  resource_lookup_data_entry *lookupdata)
+ {
+     u8 *source;
++/*
++ * GE_HOST_PORT: the Huffman pool is sized in BYTES for an 8-byte `struct huft`.
++ * That union holds a `struct huft *`, so the entry is 8 bytes on the N64 and
++ * 16 on a 64-bit host -- the same entries then need twice the space and
++ * silently overrun this array. Scaled by the real entry size so the ENTRY count
++ * is what stays fixed, which is the thing the decompressor actually bounds.
++ * The N64 declaration below is untouched, so `make` is unaffected.
++ * See patches/HOST-PORT-PATCHES.md 17.
++ */
++#ifdef GE_HOST_PORT
++    u8  buffer[0x2100 * (sizeof(void *) / 4)];
++#else
+     u8  buffer[0x2100];
++#endif
+     s32 unused;
+ 
+ 
+@@ -74,7 +87,20 @@ void load_resource(u8 *ptrdata, s32 bytes,  fileentry *srcfile,  resource_lookup
+ void resource_load_from_indy(u8 *ptrdata, s32 bytes,  fileentry *srcfile,  resource_lookup_data_entry *lookupdata)
+ {
+     u8 *pPayload;
++/*
++ * GE_HOST_PORT: the Huffman pool is sized in BYTES for an 8-byte `struct huft`.
++ * That union holds a `struct huft *`, so the entry is 8 bytes on the N64 and
++ * 16 on a 64-bit host -- the same entries then need twice the space and
++ * silently overrun this array. Scaled by the real entry size so the ENTRY count
++ * is what stays fixed, which is the thing the decompressor actually bounds.
++ * The N64 declaration below is untouched, so `make` is unaffected.
++ * See patches/HOST-PORT-PATCHES.md 17.
++ */
++#ifdef GE_HOST_PORT
++    u8 buffer[8448 * (sizeof(void *) / 4)];
++#else
+     u8 buffer[8448];
++#endif
+     s32 size;
+     static const u8 rz_header_1[] = {0x11, 0x72, 0x00, 0x00};
+     static const u8 rz_header_2[] = {0x11, 0x72, 0x00, 0x00};
+diff --git a/src/game/ob.h b/src/game/ob.h
+index 5098918..7b23db5 100644
+--- a/src/game/ob.h
++++ b/src/game/ob.h
+@@ -48,6 +48,12 @@ void fileSetSize(s32 filenum, u8* ptr, u32 size, s32 reallocate);
+ s32 get_pc_buffer_remaining_value(u8 *name);
+ s32 get_rom_remaining_buffer_for_index(s32 index);
+ s32 get_pc_remaining_buffer_for_index(s32 index);
+-s32 fileGetIndex(char *resname);
++/* Declared `char *` here but DEFINED `u8 *` in ob.c:384. IDO accepted the
++   mismatch; standard C makes it a hard error. Aligned to the definition, which
++   is the decompiled ground truth -- the body only forwards resname to strcmp()
++   and indycommHostCheckFileExists(), so nothing here is signedness-sensitive.
++   A pointer parameter's pointee type does not affect the MIPS calling
++   convention, so the emitted code is unchanged. */
++s32 fileGetIndex(u8 *resname);
+ 
+ #endif
+diff --git a/src/game/objecthandler_2.c b/src/game/objecthandler_2.c
+index e033dfe..06f612b 100644
+--- a/src/game/objecthandler_2.c
++++ b/src/game/objecthandler_2.c
+@@ -1,4 +1,7 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_addr_compat.h>
++#endif
+ #include "chrobjdata.h"
+ #include "image.h"
+ #include "math_asinfacosf.h"
+@@ -41,14 +44,30 @@ void sub_GAME_7F0762E0(ModelFileHeader *objheader, u8 *name, u8 *dst, struct tex
+ 
+     if (gdl != 0)
+     {
++#ifdef GE_HOST_PORT
++        /*
++         * The sum is 32-bit arithmetic whose WRAP is the mechanism, exactly as
++         * in libaudio's bank relocation. Casting the int result straight to a
++         * pointer sign-extends it on a 64-bit host, because these are RDRAM
++         * addresses with the top bit set. Convert once, through u32.
++         */
++        name = GE_PTR(u8 *, (pcremaining - ((s32) (((u8 *) objheader->Switches) + (((u32) gdl) & 0x00ffffff)))) + ((s32) filedata));
++#else
+         name = (u8 *) ((pcremaining - ((s32) (((u8 *) objheader->Switches) + (((u32) gdl) & 0x00ffffff)))) + ((s32) filedata));
++#endif
+         
+         /* The signed lvalue cast is required for the compiler to choose the target registers. */
+         replacementgdl = (u32)*(s32 *)&gdl;
+         
+         delta = ((s32) ((romremaining + filedata) - (s32) name)) - ((s32) (((u8 *) objheader->Switches) + (((u32) gdl) & 0x00ffffff)));
+         
++#ifdef GE_HOST_PORT
++        texCopyGdls((Gfx *) (((u8 *) objheader->Switches) + (((u32) gdl) & 0x00ffffff)),
++                    GE_PTR(Gfx *, (romremaining + filedata) - (s32) name),
++                    (s32) name);
++#else
+         texCopyGdls((Gfx *) (((u8 *) objheader->Switches) + (((u32) gdl) & 0x00ffffff)), (Gfx *) ((romremaining + filedata) - (s32) name), (s32) name);
++#endif
+ 
+         texLoadFromModelFileHeader(objheader, buffer);
+ 
+diff --git a/src/game/objective_status.c b/src/game/objective_status.c
+index 4ebf14b..34c9c8b 100644
+--- a/src/game/objective_status.c
++++ b/src/game/objective_status.c
+@@ -153,7 +153,9 @@ s32 get_difficulty_for_objective(s32 objectiveIndex)
+ 
+ 
+ //horrible hack to get ai matching, but it does correctly refrence this func with 2 params
++#ifdef TARGET_N64
+ #pragma weak    objectiveGetStatus_WEAK = get_status_of_objective
++#endif
+ 
+ /*
+  * Return Status of objective.
+@@ -523,3 +525,24 @@ void objectiveTakePictureHandler(void)
+ 
+ 
+ //filebreak
++
++
++#ifndef TARGET_N64
++/*
++ * Host: the `#pragma weak` above gives get_status_of_objective a second name,
++ * which src/game/chrai.c:38 declares with TWO parameters and calls with two
++ * arguments -- the "horrible hack to get ai matching" the comment refers to.
++ *
++ * clang rejects uses of a weak alias as ambiguous, and a file-local macro is
++ * not enough here: unlike the aliases in lv.c and spectrum.c, this one is
++ * referenced from another translation unit, so the symbol has to really exist.
++ * A forwarding function provides it and discards the extra argument, which is
++ * what the aliased call did anyway. Defined at the end of the file so
++ * get_status_of_objective is already in scope.
++ */
++s32 objectiveGetStatus_WEAK(s32 objectiveNum, s32 unused)
++{
++    (void)unused;
++    return (s32)get_status_of_objective(objectiveNum);
++}
++#endif
+diff --git a/src/game/prop.c b/src/game/prop.c
+index 8c877b2..180e570 100644
+--- a/src/game/prop.c
++++ b/src/game/prop.c
+@@ -642,17 +642,17 @@ void setupCctv(s32 arg0, CCTVRecord *arg1, s32 cmdindex)
+ 
+     domakedefaultobj(arg0, (struct ObjectRecord*)arg1, cmdindex);
+ 
+-    if (arg1->pad >= 0)
++    if (CCTV_PAD(arg1) >= 0)
+     {
+         temp_a2 = (struct coord3d*)arg1->model->obj->Switches[0]->Data;
+ 
+-        if (isNotBoundPad(arg1->pad))
++        if (isNotBoundPad(CCTV_PAD(arg1)))
+         {
+-            sp50 = &g_CurrentSetup.pads[arg1->pad];
++            sp50 = &g_CurrentSetup.pads[CCTV_PAD(arg1)];
+         }
+         else
+         {
+-            sp50 = (struct PadRecord *)&g_CurrentSetup.boundpads[getBoundPadNum(arg1->pad)];
++            sp50 = (struct PadRecord *)&g_CurrentSetup.boundpads[getBoundPadNum(CCTV_PAD(arg1))];
+         }
+ 
+         sp44.f[0] = temp_a2->f[0];
+diff --git a/src/game/propobj.c b/src/game/propobj.c
+index 0ae7a3f..813bba0 100644
+--- a/src/game/propobj.c
++++ b/src/game/propobj.c
+@@ -2403,7 +2403,7 @@ ModelRenderData D_80030B34 = {NULL,
+ 
+ 
+ //[80030B74	00	Bond]
+-u32 monAnim00Bond[] = {
++MonScriptWord monAnim00Bond[] = {
+     MONUSEIMAGE(IMGBOND),
+     MONHORZSCROLL(0x400, 20),
+     MONHOLDTIME(20),
+@@ -2419,7 +2419,7 @@ u32 monAnim00Bond[] = {
+ };
+ 
+ //[80030C00	01	Desktops, Satellite]
+-u32 monAnim01DesktopsSatellite[] = {
++MonScriptWord monAnim01DesktopsSatellite[] = {
+      MONUSEIMAGE(IMG2DMATH),
+      MONHORZSCROLL(0x400, 20),
+      MONHOLDTIME(20),
+@@ -2468,7 +2468,7 @@ u32 monAnim01DesktopsSatellite[] = {
+ };
+ 
+ //[80030E24	02	10 screens: astrological]
+-u32 monAnim02Astrological[] = {
++MonScriptWord monAnim02Astrological[] = {
+      MONUSEIMAGE(IMGSHUTTLE1), MONHOLDTIME(80),
+      MONUSEIMAGE(IMGSHUTTLE2), MONHOLDTIME(80),
+      MONUSEIMAGE(IMGEARTHFULL1), MONHOLDTIME(80),
+@@ -2483,7 +2483,7 @@ u32 monAnim02Astrological[] = {
+ };
+ 
+ //[80030EC8	0F	7 screens: satellite, targetting, ]
+-u32 monAnim0FSatelliteTargeting[] = {
++MonScriptWord monAnim0FSatelliteTargeting[] = {
+      MONUSEIMAGE(IMGEARTH), MONHOLDTIME(80),
+      MONUSEIMAGE(IMGDESKTOPBANG), MONHOLDTIME(80),
+      MONUSEIMAGE(IMGHEATMAP), MONHOLDTIME(80),
+@@ -2496,7 +2496,7 @@ u32 monAnim0FSatelliteTargeting[] = {
+ };
+ 
+ //[80030F44	03	3 wave patterns]
+-u32 monAnim03ThreeWavePattern[] = {
++MonScriptWord monAnim03ThreeWavePattern[] = {
+      MONRGBA(COLOR_MINESHAFT3, 1),
+      MONUSEIMAGE(IMGSINE),
+      MONHORZSCROLL(0x800, 120),
+@@ -2520,7 +2520,7 @@ u32 monAnim03ThreeWavePattern[] = {
+ };
+ 
+ //[80031018	04	wave pattern]
+-u32 monAnim04WavePattern[] = {
++MonScriptWord monAnim04WavePattern[] = {
+      MONRGBA(COLOR_MINESHAFT3, 1),
+      MONUSEIMAGE(IMGSINE),
+      MONZOOMWIDTH(0x80, 1),
+@@ -2533,7 +2533,7 @@ u32 monAnim04WavePattern[] = {
+ };
+ 
+ //[80031074	05	green text up]
+-u32 monAnim05GreenTextUp[] = {
++MonScriptWord monAnim05GreenTextUp[] = {
+      MONUSEIMAGE(IMGTEXT),
+      MONRGBA(COLOR_BARELYGREENOPAQUE, 1),
+      MONVERTSCROLL(0xFFFFFE00, 80),
+@@ -2550,7 +2550,7 @@ u32 monAnim05GreenTextUp[] = {
+ };
+ 
+ //[800310F0	06	red text down]
+-u32 monAnim06RedTextDown[] = {
++MonScriptWord monAnim06RedTextDown[] = {
+      MONUSEIMAGE(IMGTEXT),
+      MONRGBA(COLOR_DIESEL, 1),
+      MONVERTSCROLL(0x200, 80),
+@@ -2570,7 +2570,7 @@ u32 monAnim06RedTextDown[] = {
+ };
+ 
+ //[8003118C	07	d. green text down]
+-u32 monAnim07GreenTextDown[] = {
++MonScriptWord monAnim07GreenTextDown[] = {
+      MONUSEIMAGE(IMGTEXT),
+      MONRGBA(COLOR_DEEPFIR, 1),
+      MONVERTSCROLL(0x200, 80),
+@@ -2589,7 +2589,7 @@ u32 monAnim07GreenTextDown[] = {
+ };
+ 
+ //[8003121C	08	red bar graph +]
+-u32 monAnim08RedBarGraph[] = {
++MonScriptWord monAnim08RedBarGraph[] = {
+      MONUSEIMAGE(IMGBARS),
+      MONRGBA(COLOR_VERDUNGREEN, 1),
+      MONHORZSCROLL(0x280, 1),
+@@ -2598,7 +2598,7 @@ u32 monAnim08RedBarGraph[] = {
+ };
+ 
+ //[80031248	09	blue bar graph +]
+-u32 monAnim09BlueBarGraph[] = {
++MonScriptWord monAnim09BlueBarGraph[] = {
+      MONUSEIMAGE(IMGBARS),
+      MONRGBA(COLOR_CYPRUS, 1),
+      MONHORZSCROLL(0x280, 1),
+@@ -2607,7 +2607,7 @@ u32 monAnim09BlueBarGraph[] = {
+ };
+ 
+ //[80031274	0A	green bar graph -]
+-u32 monAnim0AGreenBarGraph[] = {
++MonScriptWord monAnim0AGreenBarGraph[] = {
+      MONUSEIMAGE(IMGBARS),
+      MONRGBA(COLOR_TOMTHUMB, 1),
+      MONHORZSCROLL(0xFFFFFD80, 1),
+@@ -2616,19 +2616,19 @@ u32 monAnim0AGreenBarGraph[] = {
+ };
+ 
+ //[800312A0	subroutine	used by radar]
+-u32 monAnimRadarSub1[] = {
++MonScriptWord monAnimRadarSub1[] = {
+      MONRGBA(COLOR_GREEN, 20),
+      MONJUMPTO(monAnimRadarSub3)
+ };
+ 
+ //[800312B4	subroutine	used by radar]
+-u32 monAnimRadarSub2[] = {
++MonScriptWord monAnimRadarSub2[] = {
+      MONRGBA(COLOR_SANFELIX, 20),
+      MONJUMPTO(monAnimRadarSub3)
+ };
+ 
+ //[800312C8	subroutine	used by radar]
+-u32 monAnimRadarSub3[] = {
++MonScriptWord monAnimRadarSub3[] = {
+      MONROTATEIMAGE(0xB6),
+      MONHOLDTIME(1),
+      MONJUMPCHANCE(monAnimRadarSub1, TWO_PERCENT_CHANCE),
+@@ -2637,14 +2637,14 @@ u32 monAnimRadarSub3[] = {
+ };
+ 
+ //[800312F4	0B	radar]
+-u32 monAnim0BRadar[] = {
++MonScriptWord monAnim0BRadar[] = {
+      MONUSEIMAGE(IMGTRIANGLE),
+      MONRGBA(COLOR_ALMOSTDARKGREEN, 1),
+      MONJUMPTO(monAnimRadarSub2)
+ };
+ 
+ //[80031310	0C	spinning cube]
+-u32 monAnim0CSpinningCube[] = {
++MonScriptWord monAnim0CSpinningCube[] = {
+      MONUSEIMAGE(IMGCUBE1),
+      MONRGBA(COLOR_MINSK, 30),
+      MONHOLDTIME(5),
+@@ -2658,7 +2658,7 @@ u32 monAnim0CSpinningCube[] = {
+ };
+ 
+ //[80031360	10	global map]
+-u32 monAnim10GlobalMap[] = {
++MonScriptWord monAnim10GlobalMap[] = {
+      MONUSEIMAGE(IMGWORLDMAP),
+      MONRGBA(COLOR_SEAGREEN, 30),
+      MONHORZSCROLL(0xFFFFFC00, 1024),
+@@ -2690,7 +2690,7 @@ u32 monAnim10GlobalMap[] = {
+ };
+ 
+ //[80031490	0D	3 screens: location, weapon armed, ]
+-u32 monAnim0DLocWeapArmed[] = {
++MonScriptWord monAnim0DLocWeapArmed[] = {
+      MONRGBA(COLOR_BLACK, 1),
+      MONRGBA(COLOR_SILVER, 400),
+      MONUSEIMAGE(1),
+@@ -2706,7 +2706,7 @@ u32 monAnim0DLocWeapArmed[] = {
+ };
+ 
+ //[800314F8	0E	red target]
+-u32 monAnim0ERedTarget[] = {
++MonScriptWord monAnim0ERedTarget[] = {
+      MONZOOMSQUARE(0x400, 1),
+      MONRGBA(COLOR_THUNDERBIRD, 1),
+      MONUSEIMAGE(6),
+@@ -2721,7 +2721,7 @@ u32 monAnim0ERedTarget[] = {
+ };
+ 
+ //[8003156C	11	Karl yelling]
+-u32 monAnim11KarlYelling[] = {
++MonScriptWord monAnim11KarlYelling[] = {
+      MONRGBA(COLOR_DARKGREEN, 0),
+      MONUSEIMAGE(IMGTALK1),
+      MONHOLDTIME(5),
+@@ -2737,7 +2737,7 @@ u32 monAnim11KarlYelling[] = {
+ };
+ 
+ //[800315CC	12	skateboard]
+-u32 monAnim12Skateboard[] = {
++MonScriptWord monAnim12Skateboard[] = {
+      MONUSEIMAGE(IMGSKATEBOARD4),
+      MONRGBA(COLOR_DARKGREEN, 0),
+      MONHOLDTIME(3),
+@@ -2806,7 +2806,7 @@ u32 monAnim12Skateboard[] = {
+ };
+ 
+ //[80031848	13	police guy]
+-u32 monAnim13PoliceGuy[] = {
++MonScriptWord monAnim13PoliceGuy[] = {
+     MONRGBA(COLOR_DARKGREEN2, 0),
+     MONUSEIMAGE(IMGFIST1),
+     MONHOLDTIME(5),
+@@ -2820,7 +2820,7 @@ u32 monAnim13PoliceGuy[] = {
+ };
+ 
+ //[80031898	14	'off']
+-u32 monAnim14Off[] = {
++MonScriptWord monAnim14Off[] = {
+     MONUSEIMAGE(IMGSINE),
+     MONRGBA(COLOR_BARELYGREEN, 1),
+     MONHOLDTIME(5),
+@@ -2828,7 +2828,7 @@ u32 monAnim14Off[] = {
+ };
+ 
+ //[800318B8	15	randomly select one of seven animations]
+-u32 monAnim15RandomSeven[] = {
++MonScriptWord monAnim15RandomSeven[] = {
+     MONJUMPCHANCE(monAnim04WavePattern, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim11KarlYelling, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim08RedBarGraph, TEN_PERCENT_CHANCE),
+@@ -2841,7 +2841,7 @@ u32 monAnim15RandomSeven[] = {
+ };
+ 
+ //[8003191C	16	randomly select random screens + random effects or boring]
+-u32 monAnim16RandomFour[] = {
++MonScriptWord monAnim16RandomFour[] = {
+     MONJUMPCHANCE(monAnim03ThreeWavePattern, TWO_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim08RedBarGraph, TWO_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim05GreenTextUp, TWO_PERCENT_CHANCE),
+@@ -2850,7 +2850,7 @@ u32 monAnim16RandomFour[] = {
+ };
+ 
+ //[80031950	17	Base Function for random screens + random effects]
+-u32 monAnim17RandImageEffect[] = {
++MonScriptWord monAnim17RandImageEffect[] = {
+     MONJUMPCHANCE(monRandEffectChanceSHUTTLE1, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monRandEffectChanceSHUTTLE2, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monRandEffectChanceEARTHFULL1, TEN_PERCENT_CHANCE),
+@@ -2866,77 +2866,77 @@ u32 monAnim17RandImageEffect[] = {
+ };
+ 
+ //[800319D4	18	random screens + random effects - set image]
+-u32 monRandEffectChanceSHUTTLE1[] = {
++MonScriptWord monRandEffectChanceSHUTTLE1[] = {
+     MONUSEIMAGE(IMGSHUTTLE1),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[800319F0	19	random screens + random effects - set image]
+-u32 monRandEffectChanceSHUTTLE2[] = {
++MonScriptWord monRandEffectChanceSHUTTLE2[] = {
+     MONUSEIMAGE(IMGSHUTTLE2),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A0C	1A	random screens + random effects - set image]
+-u32 monRandEffectChanceEARTHFULL1[] = {
++MonScriptWord monRandEffectChanceEARTHFULL1[] = {
+     MONUSEIMAGE(IMGEARTHFULL1),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A28	1B	random screens + random effects - set image]
+-u32 monRandEffectChanceEARTHFULL2[] = {
++MonScriptWord monRandEffectChanceEARTHFULL2[] = {
+     MONUSEIMAGE(IMGEARTHFULL2),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A44	1C	random screens + random effects - set image]
+-u32 monRandEffectChanceBLUESTARS[] = {
++MonScriptWord monRandEffectChanceBLUESTARS[] = {
+     MONUSEIMAGE(IMGBLUESTARS),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A60	1D	random screens + random effects - set image]
+-u32 monRandEffectChanceGALAXY1[] = {
++MonScriptWord monRandEffectChanceGALAXY1[] = {
+     MONUSEIMAGE(IMGGALAXY1),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A7C	1E	random screens + random effects - set image]
+-u32 monRandEffectChanceGALAXY2[] = {
++MonScriptWord monRandEffectChanceGALAXY2[] = {
+     MONUSEIMAGE(IMGGALAXY2),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031A98	1F	random screens + random effects - set image]
+-u32 monRandEffectChanceEARTHTEXT[] = {
++MonScriptWord monRandEffectChanceEARTHTEXT[] = {
+     MONUSEIMAGE(IMGEARTHTEXT),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031AB4	20	random screens + random effects - set image]
+-u32 monRandEffectChanceTARGETEARTH[] = {
++MonScriptWord monRandEffectChanceTARGETEARTH[] = {
+     MONUSEIMAGE(IMGTARGETEARTH),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031AD0	21	random screens + random effects - set image]
+-u32 monRandEffectChanceGALAXY3[] = {
++MonScriptWord monRandEffectChanceGALAXY3[] = {
+     MONUSEIMAGE(IMGGALAXY3),
+     MONHOLDTIME(20),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, HUNDRED_PERCENT_CHANCE)
+ };
+ 
+ //[80031AEC	22	random screens + random effects - colourizer]
+-u32 monRandChanceScrollOrZoomRandRGBN[] = {
++MonScriptWord monRandChanceScrollOrZoomRandRGBN[] = {
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRed, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomGreen, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomBlue, TEN_PERCENT_CHANCE),
+@@ -2945,22 +2945,22 @@ u32 monRandChanceScrollOrZoomRandRGBN[] = {
+ };
+ 
+ //[80031B24	23	random screens + random effects - colourizer]
+-u32 monRandChanceScrollOrZoomRed[] = {
++MonScriptWord monRandChanceScrollOrZoomRed[] = {
+     MONRGBA(COLOR_PERSIANRED, 60),
+     MONJUMPTO(monRandChanceScrollOrZoom)
+ };
+ 
+-u32 monRandChanceScrollOrZoomGreen[] = {
++MonScriptWord monRandChanceScrollOrZoomGreen[] = {
+     MONRGBA(COLOR_APPLE, 60),
+     MONJUMPTO(monRandChanceScrollOrZoom)
+ };
+ 
+-u32 monRandChanceScrollOrZoomBlue[] = {
++MonScriptWord monRandChanceScrollOrZoomBlue[] = {
+     MONRGBA(COLOR_GOVERNORBAY, 60),
+     MONJUMPTO(monRandChanceScrollOrZoom)
+ };
+ 
+-u32 monRandChanceScrollOrZoom[] = {
++MonScriptWord monRandChanceScrollOrZoom[] = {
+     MONHOLDTIME(50),
+     MONJUMPCHANCE(monAnim27RandomEffectScrollRight, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim28RandomEffectScrollUpFast, TEN_PERCENT_CHANCE),
+@@ -2973,28 +2973,28 @@ u32 monRandChanceScrollOrZoom[] = {
+ 
+ 
+ //[80031BB4	27	random screens + random effects - scroll right]
+-u32 monAnim27RandomEffectScrollRight[] = {
++MonScriptWord monAnim27RandomEffectScrollRight[] = {
+     MONHORZSCROLL(0x800, 120),
+     MONHOLDTIME(120),
+     MONJUMPTO(monAnim2CRandEffectWaitRoute)
+ };
+ 
+ //[80031BD0	28	random screens + random effects - scroll up fast]
+-u32 monAnim28RandomEffectScrollUpFast[] = {
++MonScriptWord monAnim28RandomEffectScrollUpFast[] = {
+     MONVERTSCROLL(0x2000, 50),
+     MONHOLDTIME(200),
+     MONJUMPTO(monAnim2CRandEffectWaitRoute)
+ };
+ 
+ //[80031BEC	29	random screens + random effects - scroll up]
+-u32 monAnim29RandomEffectScrollUp[] = {
++MonScriptWord monAnim29RandomEffectScrollUp[] = {
+     MONVERTSCROLL(0x2000, 200),
+     MONHOLDTIME(200),
+     MONJUMPTO(monAnim2CRandEffectWaitRoute)
+ };
+ 
+ //[80031C08	2A	random screens + random effects - scroll and zoom]
+-u32 monAnim2ARandEffectScrollZoom1[] = {
++MonScriptWord monAnim2ARandEffectScrollZoom1[] = {
+     MONHORZSCROLLNA(0x288, 300),
+     MONVERTSCROLLNA(0x3AA, 300),
+     MONZOOMSQUARE(0x80, 200),
+@@ -3007,7 +3007,7 @@ u32 monAnim2ARandEffectScrollZoom1[] = {
+ };
+ 
+ //[80031C80	2B	random screens + random effects - scroll and zoom]
+-u32 monAnim2ARandEffectScrollZoom2[] = {
++MonScriptWord monAnim2ARandEffectScrollZoom2[] = {
+     MONHORZSCROLLNA(0x320, 400),
+     MONVERTSCROLLNA(0x190, 400),
+     MONZOOMSQUARE(0x80, 200),
+@@ -3024,7 +3024,7 @@ u32 monAnim2ARandEffectScrollZoom2[] = {
+ };
+ 
+ //[80031D30	2C	random screens + random effects - wait and route]
+-u32 monAnim2CRandEffectWaitRoute[] = {
++MonScriptWord monAnim2CRandEffectWaitRoute[] = {
+     MONHOLDTIME(50),
+     MONJUMPCHANCE(monRandChanceScrollOrZoomRandRGBN, TEN_PERCENT_CHANCE),
+     MONJUMPCHANCE(monAnim2DRandEffectFlash, TWENTY_PERCENT_CHANCE),
+@@ -3032,7 +3032,7 @@ u32 monAnim2CRandEffectWaitRoute[] = {
+ };
+ 
+ //[80031D58	2D	random screens + random effects - flash]
+-u32 monAnim2DRandEffectFlash[] = {
++MonScriptWord monAnim2DRandEffectFlash[] = {
+     MONHOLDTIME(50),
+     MONRGBA(COLOR_WHITE, 10),
+     MONRGBA(COLOR_BLACK, 5),
+@@ -3044,7 +3044,7 @@ u32 monAnim2DRandEffectFlash[] = {
+ };
+ 
+ //[80031DA8	2E	red brightening screen]
+-u32 monAnim2ERedBrightening[] = {
++MonScriptWord monAnim2ERedBrightening[] = {
+      MONUSEIMAGE(IMGKEYBOARDKEY),
+      MONZOOMSQUARE(0x200, 0),
+      MONRGBA(COLOR_ALIZARINCRIMSON, 60),
+@@ -3055,7 +3055,7 @@ u32 monAnim2ERedBrightening[] = {
+ };
+ 
+ //[80031DF4	2F	green brightening screen]
+-u32 monAnim2FGreenBrightening[] = {
++MonScriptWord monAnim2FGreenBrightening[] = {
+      MONUSEIMAGE(IMGKEYBOARDKEY),
+      MONZOOMSQUARE(0x200, 0),
+      MONRGBA(COLOR_APPLE, 60),
+@@ -3066,7 +3066,7 @@ u32 monAnim2FGreenBrightening[] = {
+ };
+ 
+ //[80031E40	30	grey solid]
+-u32 monAnim30GreySolid[] = {
++MonScriptWord monAnim30GreySolid[] = {
+      MONUSEIMAGE(IMGKEYBOARDKEY),
+      MONZOOMSQUARE(0x200, 0),
+      MONRGBA(COLOR_MINESHAFT2, 10),
+@@ -3075,7 +3075,7 @@ u32 monAnim30GreySolid[] = {
+ };
+ 
+ //[80031E78	31	red solid]
+-u32 monAnim31RedSolid[] = {
++MonScriptWord monAnim31RedSolid[] = {
+      MONUSEIMAGE(IMGKEYBOARDKEY),
+      MONZOOMSQUARE(0x200, 0),
+      MONRGBA(COLOR_ALIZARINCRIMSON, 10),
+@@ -3084,7 +3084,7 @@ u32 monAnim31RedSolid[] = {
+ };
+ 
+ //[80031EB0	32	green solid]
+-u32 monAnim32GreenSolid[] = {
++MonScriptWord monAnim32GreenSolid[] = {
+      MONUSEIMAGE(IMGKEYBOARDKEY),
+      MONZOOMSQUARE(0x200, 0),
+      MONRGBA(COLOR_APPLE, 10),
+@@ -3093,14 +3093,14 @@ u32 monAnim32GreenSolid[] = {
+ };
+ 
+ //[80031EE8	33	black solid]
+-u32 monAnim33BlackSolid[] = {
++MonScriptWord monAnim33BlackSolid[] = {
+      MONUSEIMAGE(0),
+      MONRGBA(COLOR_BLACK, 0),
+      MONSTOPANIM()
+ };
+ 
+ //[80031F00	34	???	Not Included in Normal List - linked @ 0x9544]
+-u32 monAnim34[] = {
++MonScriptWord monAnim34[] = {
+      MONZOOMSQUARE(0x400, 0),
+      MONHOLDTIME(1),
+      MONZOOMSQUARE(0x1000, 20),
+@@ -3109,7 +3109,7 @@ u32 monAnim34[] = {
+ };
+ 
+ //[80031F44	35	Taser	Not Included in Normal List!]
+-u32 monAnim35Taser[] = {
++MonScriptWord monAnim35Taser[] = {
+      MONUSEIMAGE(IMGBOND),
+      MONHORZSCROLL(0x400, 20), MONHOLDTIME(20),
+      MONVERTSCROLL(0x400, 20), MONRGBA(COLOR_BLACK, 20), MONHOLDTIME(20),
+@@ -9811,7 +9811,13 @@ void sub_GAME_7F04F244(PropRecord* prop, rect4f** polygon, s32* edges, f32* top,
+ }
+ 
+ 
+-void append_text_picked_up(u8 *buffer,u8 * param2,u8 * param3)
++/* param2/param3 were typed u8* but both call sites (below) pass an AMMOTYPE
++   and a u32. IDO tolerated the pointer/integer mix (warning 712, disabled in
++   the Makefile); standard C does not. Retyped to what the callers actually
++   pass. Both parameters are UNUSED in the body, and on MIPS o32 an enum, a u32
++   and a pointer are all one 32-bit register argument, so the emitted code is
++   unchanged. */
++void append_text_picked_up(u8 *buffer, AMMOTYPE param2, u32 param3)
+ {
+   u8 *str;
+ 
+diff --git a/src/game/rsp.c b/src/game/rsp.c
+index ca6959e..6a625b2 100644
+--- a/src/game/rsp.c
++++ b/src/game/rsp.c
+@@ -203,11 +203,18 @@ struct GfxInfo_s g_gfxTaskSettings[2] =
+  */
+ struct GfxInfo_s *g_gfxTaskSettingsList = &g_gfxTaskSettings[0];
+ 
++#ifdef TARGET_N64
+ extern long long int rspbootTextStart[];
+ extern long long int rspbootTextEnd[];
+ extern long long int gsp3DTextStart[];
+ extern long long int gsp3DDataStart[];
+-
++#else
++/* Host: these labels come from hostcompat/ge_ucode.h, generated from the
++   decomp's own extracted microcode binaries. The *End names are macros
++   there (C cannot place a symbol at another array's end), so the
++   declarations below cannot be parsed once it is included. */
++#include <ge_ucode.h>
++#endif
+ void rspInit(void)
+ {
+     debTryAdd(&g_gfxDebugEntryData, "rsp_c_debug");
+diff --git a/src/game/spectrum.c b/src/game/spectrum.c
+index 29f223d..e76df09 100644
+--- a/src/game/spectrum.c
++++ b/src/game/spectrum.c
+@@ -46,8 +46,19 @@ s32 sub_GAME_7F0D37DC(u32 cycles, u8 specA, u8 port, u8 value);
+ 
+ // data
+ s8 D_8004EC30 = 0x0;
++#ifdef TARGET_N64
+ extern u8 spec_keyboard_row_caps_z_x_c_v;
+ #pragma weak spec_keyboard_row_caps_z_x_c_v = spec_keyboard_buffer
++#else
++/*
++ * Host: see the note in src/game/lv.c -- clang rejects uses of a `#pragma weak`
++ * alias as ambiguous. A macro says the same thing portably: one object, two
++ * names.
++ */
++/* The alias is declared `extern u8` -- a SCALAR at the array's address, used as
++   `spec_keyboard_row_caps_z_x_c_v = 0xff`. So it names byte 0, not the array. */
++#define spec_keyboard_row_caps_z_x_c_v (spec_keyboard_buffer[0])
++#endif
+ u8 spec_keyboard_buffer[] = 
+ {
+     0xFF, 0xFF, 0xFF, 0xFF,
+diff --git a/src/game/textrelated.c b/src/game/textrelated.c
+index 455e922..3649f57 100644
+--- a/src/game/textrelated.c
++++ b/src/game/textrelated.c
+@@ -1,4 +1,7 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++#include <ge_swap_util.h>
++#endif
+ #include <memp.h>
+ #include "textrelated.h"
+ #include "bondtypes.h"
+@@ -86,12 +89,20 @@ void setTextOverlapCorrection(s32 flag) {
+     overlap_correction = flag;
+ }
+ 
++#ifdef TARGET_N64
+ extern u8 _fontbankgothicSegmentEnd;
+ extern u8 _fontbankgothicSegmentRomStart;
+ extern u8 _fontzurichboldSegmentEnd;
+ extern u8 _fontzurichboldSegmentRomStart;
+ extern u8 _fontzurichboldSegmentStart;
+ extern u8 _fontbankgothicSegmentStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ void load_font_tables(void)
+ {
+@@ -113,6 +124,12 @@ void load_font_tables(void)
+ 	ptrFontBankGothicChars = ptrFontBankGothic->chars;
+ 
+ 	romCopy(ptrFontBankGothic, (void *) &_fontbankgothicSegmentRomStart, len);
++#ifdef GE_HOST_PORT
++    /* The font segment is cartridge data: every s32 in the kerning table and in
++       each fontchar arrives big-endian. Swap before the pointer fixup below
++       reads pixeldata. */
++    geSwap_font(ptrFontBankGothic);
++#endif
+ 
+     // Convert pointers
+ 	for (i = 0; i < 94; i++) {
+@@ -124,6 +141,12 @@ void load_font_tables(void)
+ 	ptrFontZurichBoldChars = ptrFontZurichBold->chars;
+ 
+ 	romCopy(ptrFontZurichBold, (void *) &_fontzurichboldSegmentRomStart, len);
++#ifdef GE_HOST_PORT
++    /* The font segment is cartridge data: every s32 in the kerning table and in
++       each fontchar arrives big-endian. Swap before the pointer fixup below
++       reads pixeldata. */
++    geSwap_font(ptrFontZurichBold);
++#endif
+ 
+     // Convert pointers
+ 	for (i = 0; i < 94; i++) {
+diff --git a/src/game/title.c b/src/game/title.c
+index 8d9d8f7..4dfc0a3 100644
+--- a/src/game/title.c
++++ b/src/game/title.c
+@@ -315,11 +315,20 @@ Gfx *insert_bond_eye_intro(Gfx *gdl) {
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/* Host: segment-relative OFFSETS, not objects. The game adds these to where
++   the segment was loaded (globalbank_rdram_offset + (u32)&NAME), so the
++   ADDRESS is the payload and a BSS array at 0x20000000 points nowhere near
++   the segment. A macro and a declaration of the same name cannot coexist, so
++   the host path takes the header. See hostcompat/ge_segsym_offsets.h. */
++#include <ge_segsym_offsets.h>
++#else
+ extern Gfx *D_020043E8;
+ extern Gfx *DL_RAREWARETEXT;
+ extern Gfx *D_02004758;
+ extern u8 *D_02004FE8;
+ extern u8 *D_02005FF0;
++#endif
+ 
+ Gfx *load_display_rare_logo(Gfx *gdl, s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
+     cameraPosition1[2] = arg3;
+@@ -368,9 +377,17 @@ Gfx *load_display_rare_logo(Gfx *gdl, s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/* Host: these are macros from hostcompat/ge_segments_compat.h -- a linker
++   symbol cannot be given a chosen address on a host toolchain, so the port
++   names the byte AT that address instead. A macro and a declaration of the
++   same name cannot coexist. */
++#include <ge_segments_compat.h>
++#else
+ extern void *_rarewarelogoSegmentRomStart;
+ extern void *_rarewarelogoSegmentStart;
+-extern void *_rarewarelogoSegmentEnd; 
++extern void *_rarewarelogoSegmentEnd;
++#endif 
+ void setupRarewareLogoData(s32 address, s32 size) {
+     gunbarrel_mode = 0;
+     g_TitleX = 880.0f;
+@@ -434,8 +451,16 @@ s32 isGunBarrelInMode2(void) {
+ }
+ 
+ 
++#ifdef GE_HOST_PORT
++/* Host: unknown2_end is a MACRO naming the byte one past unknown2 -- C cannot
++   place one object's symbol at another object's end, so the generated asset
++   header defines it that way and `&unknown2_end` is still the right address.
++   A local extern here would shadow it and go undefined at link. */
++#include <ge_assets.h>
++#else
+ extern void *unknown2;
+ extern void *unknown2_end;
++#endif
+ void sub_GAME_7F008DE4(u8 **addr, s32 *size) {
+     dword_CODE_bss_8006958C = *addr;
+     *size -= 0x40400;
+diff --git a/src/game/unk_092E50.c b/src/game/unk_092E50.c
+index a39b414..49cfbb0 100644
+--- a/src/game/unk_092E50.c
++++ b/src/game/unk_092E50.c
+@@ -2,6 +2,7 @@
+ #include "bondview.h"
+ #include "lv.h"
+ #include "unk_092E50.h"
++#include "ge_gbi_compat.h"
+ 
+ // bss
+ //CODE.bss:80079E80
+@@ -261,16 +262,16 @@ void sub_GAME_7F092E50(void)
+         flt_CODE_bss_80079E88 += 6.2831802f;
+     }
+     
+-    MipMap2C_Something_Setup[2].loadtile.sl = flt_CODE_bss_80079E80;
+-    MipMap2C_Something_Setup[2].loadtile.tl = flt_CODE_bss_80079E84;
+-    MipMap2C_Something_Setup[3].loadtile.sl = ((s32)flt_CODE_bss_80079E80 + 90) & 0xFF;
+-    MipMap2C_Something_Setup[3].loadtile.tl = ((s32)flt_CODE_bss_80079E84 + 150) & 0xFF;
++    GFX_SET_LOADTILE_SL(&MipMap2C_Something_Setup[2], flt_CODE_bss_80079E80);
++    GFX_SET_LOADTILE_TL(&MipMap2C_Something_Setup[2], flt_CODE_bss_80079E84);
++    GFX_SET_LOADTILE_SL(&MipMap2C_Something_Setup[3], ((s32)flt_CODE_bss_80079E80 + 90) & 0xFF);
++    GFX_SET_LOADTILE_TL(&MipMap2C_Something_Setup[3], ((s32)flt_CODE_bss_80079E84 + 150) & 0xFF);
+     ((u32 *) MipMap2C_Something_Setup)[8] = (((u32 *) MipMap2C_Something_Setup)[8] & ~0xFF) | (u32) ((sinf(flt_CODE_bss_80079E88) * 127.0f) + 128.0f);
+ 
+-    MipMap2C_Something2_Setup[2].loadtile.sl = flt_CODE_bss_80079E80;
+-    MipMap2C_Something2_Setup[2].loadtile.tl = flt_CODE_bss_80079E84;
+-    MipMap2C_Something2_Setup[3].loadtile.sl = ((s32)flt_CODE_bss_80079E80 + 90) & 0xFF;
+-    MipMap2C_Something2_Setup[3].loadtile.tl = ((s32)flt_CODE_bss_80079E84 + 150) & 0xFF;
++    GFX_SET_LOADTILE_SL(&MipMap2C_Something2_Setup[2], flt_CODE_bss_80079E80);
++    GFX_SET_LOADTILE_TL(&MipMap2C_Something2_Setup[2], flt_CODE_bss_80079E84);
++    GFX_SET_LOADTILE_SL(&MipMap2C_Something2_Setup[3], ((s32)flt_CODE_bss_80079E80 + 90) & 0xFF);
++    GFX_SET_LOADTILE_TL(&MipMap2C_Something2_Setup[3], ((s32)flt_CODE_bss_80079E84 + 150) & 0xFF);
+     ((u32 *) MipMap2C_Something2_Setup)[8] = (((u32 *) MipMap2C_Something_Setup)[8] & ~0xFF) | (u32) ((sinf(flt_CODE_bss_80079E88) * 127.0f) + 128.0f);
+ }
+ 
+diff --git a/src/game/vtxstore.c b/src/game/vtxstore.c
+index fca37a6..6e76499 100644
+--- a/src/game/vtxstore.c
++++ b/src/game/vtxstore.c
+@@ -159,7 +159,7 @@ void sub_GAME_7F09BAC4(s32 find, s32 replacement) {
+             while (var_a1 != NULL) {
+                 val = var_a1->Opcode & 0xFF;
+                 if (val == 0x18) {
+-                    temp_v0_2 = modelGetNodeRwData(var_v0->chrflags, var_a1);
++                    temp_v0_2 = modelGetNodeRwData((Model *)var_v0->chrflags, var_a1);
+                     if (find == *temp_v0_2) {
+                         *temp_v0_2 = replacement;
+                     }
+diff --git a/src/init.c b/src/init.c
+index b91eafb..63f88e4 100644
+--- a/src/init.c
++++ b/src/init.c
+@@ -10,6 +10,9 @@
+ #include "tlb_resolve.h"
+ #include "tlb_hardwire.h"
+ #include "init.h"
++#ifndef TARGET_N64
++#include <os_host.h>
++#endif
+ #include "thread_config.h"
+ 
+ #include "usb.h"
+@@ -118,6 +121,7 @@ void init(void)
+     datazipram = (u8 *) (RZIPLOADADDR - cdataSegmentRomSize);
+     dataziprom = csegmentSegmentVaddrStart;
+ 
++#ifdef TARGET_N64
+     for (j = copylen - 1; j >= 0; j--)
+     {
+         datazipram[j] = dataziprom[j];
+@@ -125,6 +129,26 @@ void init(void)
+ 
+     decompress_result = jump_decompressfile(datazipram, csegmentSegmentVaddrStart, RZIPBUFADDR);
+     if (decompress_result);
++#else
++    /*
++     * Host: the boot-time decompression is not just unnecessary, it cannot work.
++     *
++     * On N64 this unpacks the compressed code/data segment that boot.s has just
++     * DMA'd from the cartridge into RDRAM. In this port the code segment is not
++     * in RDRAM at all -- it was compiled into the executable -- so the copy
++     * above reads zeroed memory and the decompressor then walks off the end of
++     * its input. That is exactly what happened: it faulted inside
++     * inflate_stored() reading 0x71000000, having consumed ~14 MB of nothing.
++     *
++     * The decompressor itself is fine and is still linked in (jump_decompressfile
++     * in src/ultra/os_tlb.c forwards to it); the game uses it for level and
++     * asset data at runtime. It is only this one boot-time use that has nothing
++     * left to do.
++     */
++    (void)datazipram; (void)dataziprom; (void)copylen; (void)j;
++    decompress_result = 0;
++    (void)decompress_result;
++#endif
+ 
+     inflate_code_size = (s32) ((u32) &_inflateSegmentRomStart - (u32) &_codeSegmentRomStart);
+     if (inflate_code_size > MAXCODESIZE)
+@@ -140,6 +164,7 @@ void init(void)
+     // This sets up TLB CONTEXT to allow the TLB miss handler to work
+     initTLBPrepareContext();
+ 
++#ifdef TARGET_N64
+     // Copy the TLB miss handler to proper place
+     src = &resolve_TLBaddress_for_InvalidHit;
+     dest = (s32 *) K0BASE;
+@@ -147,6 +172,18 @@ void init(void)
+     {
+         *dest++ = *src++;
+     }
++#else
++    /*
++     * Host: this installs the TLB miss exception handler by copying its machine
++     * code to the CPU's exception vector. There is no exception vector and no
++     * TLB here, and the loop would be reading a host function's bytes as data
++     * -- meaningless at best. The port maps every address directly, so a TLB
++     * miss cannot occur and the handler can never run.
++     *
++     * See src/ultra/os_tlb.c for the rest of the TLB story.
++     */
++    (void)src; (void)dest;
++#endif
+ 
+     // Refresh Cache
+     osWritebackDCacheAll();
+@@ -203,7 +240,22 @@ void piStatusRegReset(void)
+  */
+ void idleproc(void *arg)
+ {
++#ifdef TARGET_N64
+     for (;;);
++#else
++    /*
++     * Host: a busy loop cannot work here. On N64 the VI interrupt preempts this
++     * thread; the port's scheduler is cooperative and has no preemption, so
++     * once idle started it never gave anything else a turn -- the port booted
++     * and hung here.
++     *
++     * geIdleWait() hands control back to the host frame loop and stays
++     * runnable, which is the same thing the interrupt did.
++     */
++    for (;;) {
++        geIdleWait();
++    }
++#endif
+ }
+ 
+ /**
+diff --git a/src/libultra/audio/bnkf.c b/src/libultra/audio/bnkf.c
+index e49ef36..93f8024 100644
+--- a/src/libultra/audio/bnkf.c
++++ b/src/libultra/audio/bnkf.c
+@@ -21,6 +21,12 @@
+ #include <libaudio.h>
+ #include <os.h>
+ #include <ultraerror.h>
++#ifdef GE_HOST_PORT
++/* The .ctl bank file is cartridge data: big-endian, and its structs are
++   pinned to the N64 layout. See hostcompat/ge_n64ptr.h. */
++#include <ge_addr_compat.h>
++#include <ge_swap_util.h>
++#endif
+ 
+ /*
+  * ### when the file format settles down a little, I'll remove these
+@@ -40,27 +46,58 @@ void alSeqFileNew(ALSeqFile *file, u8 *base)
+      * patch the file so that offsets are pointers
+      */
+     for (i = 0; i < file->seqCount; i++) {
++#ifdef GE_HOST_PORT
++        file->seqArray[i].offset = GE_RELOC(u8 *, file->seqArray[i].offset, offset);
++#else
+         file->seqArray[i].offset = (u8 *)((u8 *)file->seqArray[i].offset + offset);
++#endif
+     }
+ }
+ 
+ void alBnkfNew(ALBankFile *file, u8 *table)
+ {
++#ifdef GE_HOST_PORT
++    /* These are RDRAM addresses; as s32 they are negative and every relocation
++       below would sign-extend. See hostcompat/ge_addr_compat.h. */
++    s32 offset  = (s32)GE_U32(file);
++    s32 woffset = (s32)GE_U32(table);
++#else
+     s32 offset = (s32) file;
+     s32 woffset = (s32) table;
++#endif
+     
+     s32 i;
+     
++#ifdef GE_HOST_PORT
++    /*
++     * The .ctl file is cartridge data and arrives big-endian. Swap the header FIRST:
++     * the revision check below reads one of these fields, and on a mismatch
++     * ALFailIf RETURNS -- which is what made this look like the swap block
++     * never running at all.
++     * geSwap_ALBankFile covers bankArray[0]; the rest are done here because the
++     * array is a flexible one and the generator only sees its first element.
++     */
++    geSwap_ALBankFile(file);
++    for (i = 1; i < file->bankCount; i++) {
++        geSwap32((unsigned char *)&file->bankArray[i]);
++    }
++#endif
++
+     /*
+      * check the file format revision in debug libraries
+      */
+     ALFailIf(file->revision != AL_BANK_VERSION, ERR_ALBNKFNEW);
+     
++
+     /*
+      * patch the file so that offsets are pointers
+      */
+     for (i = 0; i < file->bankCount; i++) {
++#ifdef GE_HOST_PORT
++        file->bankArray[i] = GE_RELOC(ALBank *, file->bankArray[i], offset);
++#else
+         file->bankArray[i] = (ALBank *)((u8 *)file->bankArray[i] + offset);
++#endif
+         if(file->bankArray[i])
+             _bnkfPatchBank(file->bankArray[i], offset, woffset);
+     }
+@@ -75,14 +112,29 @@ void _bnkfPatchBank(ALBank *bank, s32 offset, s32 table)
+ 
+     bank->flags = 1;
+ 
++#ifdef GE_HOST_PORT
++    geSwap_ALBank(bank);
++    for (i = 1; i < bank->instCount; i++) {
++        geSwap32((unsigned char *)&bank->instArray[i]);
++    }
++#endif
++
+     if (bank->percussion) {
++#ifdef GE_HOST_PORT
++        bank->percussion = GE_RELOC(ALInstrument *, bank->percussion, offset);
++#else
+         bank->percussion = (ALInstrument *)((u8 *)bank->percussion + offset);
++#endif
+         _bnkfPatchInst(bank->percussion, offset, table);
+     }
+     
+     for (i = 0; i < bank->instCount; i++) {
++#ifdef GE_HOST_PORT
++        bank->instArray[i] = GE_RELOC(ALInstrument *, bank->instArray[i], offset);
++#else
+         bank->instArray[i] = (ALInstrument *)((u8 *)bank->instArray[i] +
+                                               offset);
++#endif
+         if(bank->instArray[i])
+             _bnkfPatchInst(bank->instArray[i], offset, table);
+     }
+@@ -96,10 +148,21 @@ void _bnkfPatchInst(ALInstrument *inst, s32 offset, s32 table)
+         return;
+ 
+     inst->flags = 1;
+-    
++
++#ifdef GE_HOST_PORT
++    geSwap_ALInstrument(inst);
++    for (i = 1; i < inst->soundCount; i++) {
++        geSwap32((unsigned char *)&inst->soundArray[i]);
++    }
++#endif
++
+     for (i = 0; i < inst->soundCount; i++) {
++#ifdef GE_HOST_PORT
++        inst->soundArray[i] = GE_RELOC(ALSound *, inst->soundArray[i], offset);
++#else
+         inst->soundArray[i] = (ALSound *)((u8 *)inst->soundArray[i] +
+                                           offset);
++#endif
+         _bnkfPatchSound(inst->soundArray[i], offset, table);
+ 
+     }
+@@ -111,11 +174,33 @@ void _bnkfPatchSound(ALSound *s, s32 offset, s32 table)
+         return;
+ 
+     s->flags = 1;
+-    
++
++#ifdef GE_HOST_PORT
++    geSwap_ALSound(s);
++#endif
++
++#ifdef GE_HOST_PORT
++    s->envelope  = GE_RELOC(ALEnvelope *, s->envelope, offset);
++#else
+     s->envelope  = (ALEnvelope *)((u8 *)s->envelope + offset);
++#endif
++#ifdef GE_HOST_PORT
++    s->keyMap    = GE_RELOC(ALKeyMap *, s->keyMap, offset);
++#else
+     s->keyMap    = (ALKeyMap *)((u8 *)s->keyMap + offset);
+-
++#endif
++#ifdef GE_HOST_PORT
++    /* Leaves: the patcher does not recurse into these, so swap them here or
++       nothing ever will. */
++    if (s->envelope) { geSwapOnce(s->envelope, geSwap_ALEnvelope); }
++    if (s->keyMap)   { geSwapOnce(s->keyMap,   geSwap_ALKeyMap); }
++#endif
++
++#ifdef GE_HOST_PORT
++    s->wavetable = GE_RELOC(ALWaveTable *, s->wavetable, offset);
++#else
+     s->wavetable = (ALWaveTable *)((u8 *)s->wavetable + offset);
++#endif
+     _bnkfPatchWaveTable(s->wavetable, offset, table);
+ }
+ 
+@@ -125,19 +210,40 @@ void _bnkfPatchWaveTable(ALWaveTable *w, s32 offset, s32 table)
+         return;
+ 
+     w->flags = 1;
+-    
++
++#ifdef GE_HOST_PORT
++    /* hand-written: the waveInfo union is selected by `type`. See ge_swap_util.h. */
++    geSwap_ALWaveTable(w);
++#endif
++
++#ifdef GE_HOST_PORT
++    w->base = GE_RELOC(u8 *, w->base, table);
++#else
+     w->base += table;
++#endif
+ 
+     /* sct 2/14/96 - patch wavetable loop info based on type. */
+     if (w->type == AL_ADPCM_WAVE)
+     {
++#ifdef GE_HOST_PORT
++	w->waveInfo.adpcmWave.book  = GE_RELOC(ALADPCMBook *, w->waveInfo.adpcmWave.book, offset);
++#else
+ 	w->waveInfo.adpcmWave.book  = (ALADPCMBook *)((u8 *)w->waveInfo.adpcmWave.book + offset);
++#endif
+ 	if (w->waveInfo.adpcmWave.loop)
++#ifdef GE_HOST_PORT
++	    w->waveInfo.adpcmWave.loop = GE_RELOC(ALADPCMloop *, w->waveInfo.adpcmWave.loop, offset);
++#else
+ 	    w->waveInfo.adpcmWave.loop = (ALADPCMloop *)((u8 *)w->waveInfo.adpcmWave.loop + offset);
++#endif
+     }
+     else if (w->type == AL_RAW16_WAVE)
+     {
+ 	if (w->waveInfo.rawWave.loop)
++#ifdef GE_HOST_PORT
++	    w->waveInfo.rawWave.loop = GE_RELOC(ALRawLoop *, w->waveInfo.rawWave.loop, offset);
++#else
+ 	    w->waveInfo.rawWave.loop = (ALRawLoop *)((u8 *)w->waveInfo.rawWave.loop + offset);
++#endif
+     }	
+ }
+diff --git a/src/libultra/libc/xstdio.h b/src/libultra/libc/xstdio.h
+index a75ecc4..766f145 100644
+--- a/src/libultra/libc/xstdio.h
++++ b/src/libultra/libc/xstdio.h
+@@ -39,7 +39,13 @@ typedef struct
+ 
+ typedef u8 *outfun(u8*,const u8*,size_t);
+ 
+-int _Printf(outfun prout, u8 *arg, const u8 *fmt, va_list args);
++/* Declared `u8 *` here but DEFINED `char *` in src/libultrare/libc/xprintf.c.
++   IDO accepted the mismatch (Makefile disables warning 709); standard C makes
++   it a hard error. Aligned to the definition -- the body does pointer
++   arithmetic against other `const char *` locals, so changing the definition
++   instead would cascade. char and u8 differ only in signedness and the body
++   only compares and copies bytes, so the emitted code is unchanged. */
++int _Printf(outfun prout, char *arg, const char *fmt, va_list args);
+ void _Litob(printf_struct *args, u8 type);
+ void _Ldtob(printf_struct *args, u8 type);
+ 
+diff --git a/src/memp.c b/src/memp.c
+index 3a84aa4..efa8c3d 100644
+--- a/src/memp.c
++++ b/src/memp.c
+@@ -37,7 +37,12 @@ void mempInit(void)
+ 
+ const char *tokenFind(s32 arg0, const char *arg1);
+ long int strtol(const char *str, char **endptr, int base);
++#ifdef TARGET_N64
+ void mempCheckMemflagTokens(s32 poolAreaStart, s32 poolAreaSize)
++#else
++/* See the note in memp.h: these are pointer values, and s32 truncates them. */
++void mempCheckMemflagTokens(uintptr_t poolAreaStart, uintptr_t poolAreaSize)
++#endif
+ {
+     s_mempMVALS poolSizes;
+ 
+@@ -63,7 +68,27 @@ void mempCheckMemflagTokens(s32 poolAreaStart, s32 poolAreaSize)
+     if (poolSizes.me == 0)
+     {
+         poolSizes.mf = 0;
++#ifdef GE_HOST_PORT
++        /*
++         * ME is a FIXED 296 KB, independent of how big the total pool is -- so
++         * growing RDRAM or the heap ceiling does not grow it, which is what made
++         * this confusing to chase. It holds the music heap, and libaudio's
++         * runtime structs are 1.5-2x larger on a 64-bit host (ALCSPlayer
++         * 124->224, ALEventQueue 20->40, ALVoiceState 56->88, ALChanState
++         * 16->24), so the music heap has to grow and ME has to grow with it.
++         *
++         * Doubled. The room comes from src/tlb_manage.c, which stopped
++         * reserving a 745 KB TLB mapping table this port never pages through;
++         * ML absorbs the difference and still nets larger than before.
++         *
++         * At the original size the third sequence player's voice allocation
++         * returned NULL and the game's own out-of-memory trap (memp.c:200,
++         * `while (1);`) hung the boot.
++         */
++        poolSizes.me = ((j_text_trigger ? 308 : 296) * 1024) * 2;
++#else
+         poolSizes.me = ((j_text_trigger ? 308 : 296) * 1024);
++#endif
+         poolSizes.ml = poolAreaSize - poolSizes.me;
+     }
+ 
+@@ -76,7 +101,13 @@ void mempSetBankStarts(s32 poolSizes[MEMPOOL_COUNT+1])
+     s32 bankstarts[MEMPOOL_COUNT] = {0};
+     s32 mempLen;
+     s32 mempRequested;
++#ifdef TARGET_N64
+     s32 mempStart;
++#else
++    /* Pointer value. As s32 it truncates and then sign-extends back into
++       `u8 *start`, putting every bank at 0xFFFFFFFF8.......  See memp.h. */
++    uintptr_t mempStart;
++#endif
+ 
+     //set MF, ML, ME first
+     i = 0;
+diff --git a/src/memp.h b/src/memp.h
+index 9faf503..3027e5a 100644
+--- a/src/memp.h
++++ b/src/memp.h
+@@ -46,7 +46,23 @@ typedef enum MEMP_ADD_ENTRY_RESULT
+ } MEMP_ADD_ENTRY_RESULT;
+ 
+ void mempInit(void);
++/* The memory pool base and size are POINTER values passed through an integer.
++   On N64 a pointer is 32 bits and `int` holds one exactly. On a 64-bit host,
++   0x8008E360 becomes a negative int and converting it back to `u8 *`
++   sign-extends it to 0xFFFFFFFF8008E360 -- an address that faults.
++
++   This is the same 64-bit porting problem as the MonScriptWord tables in
++   chrai.h, and the same fix: an integer type that is defined as "big enough to
++   hold a pointer". On N64 uintptr_t is u32, so the emitted code is unchanged.
++
++   It cost a segfault inside memcpy() during language-file loading, with a
++   destination pointer that looked almost right -- 0xFFFFFFFF80749C80 is the
++   correct RDRAM address with the top 32 bits set. */
++#ifdef TARGET_N64
+ void mempCheckMemflagTokens(int bstart,int bsize);
++#else
++void mempCheckMemflagTokens(uintptr_t bstart, uintptr_t bsize);
++#endif
+ void mempSetBankStarts(s32 banks[8]);
+ void *mempAllocBytesInBank(u32 bytes,u8 bank);
+ MEMP_ADD_ENTRY_RESULT mempAddEntryOfSizeToBank(void *allocation, s32 newsize, u8 poolnum);
+diff --git a/src/music.c b/src/music.c
+index a1eb52d..3055d2a 100644
+--- a/src/music.c
++++ b/src/music.c
+@@ -1,4 +1,8 @@
+ #include <ultra64.h>
++#ifdef GE_HOST_PORT
++/* the sequence bank table is cartridge data -- see below */
++#include <ge_swap_util.h>
++#endif
+ #include <PR/libaudio.h>
+ #include "inflate/inflate.h"
+ #include "audi.h"
+@@ -37,7 +41,30 @@
+  * Bytes allocated by call to mempAllocBytesInBank. This sets up a local heap,
+  * the rest of the memory allocations in this file come from this heap.
+  */
++#ifdef GE_HOST_PORT
++/*
++ * The music heap is sized in BYTES for libaudio's structs, and those structs
++ * are bigger on a 64-bit host because they contain pointers. Measured against a
++ * 32-bit build of the same headers, which is the N64's layout:
++ *
++ *     ALCSPlayer    124 -> 224   x1.81
++ *     ALEventQueue   20 ->  40   x2.00
++ *     ALVoiceState   56 ->  88   x1.57
++ *     ALChanState    16 ->  24   x1.50
++ *
++ * At the original size the third sequence player's voice array allocation
++ * returned NULL and alCSPNew wrote through it (csplayer.c:101). Doubling covers
++ * the worst ratio with room to spare; the pool comes out of a ~7 MB bank.
++ *
++ * NOTE this is the opposite treatment from the cartridge formats. These are
++ * RUNTIME allocations the port makes itself, so their layout is not fixed by
++ * anything -- growing the pool is correct, and pinning them would cap libaudio
++ * to the low 4 GB for no reason. See PRIORITIES.md P3j.
++ */
++#define MUSIC_ALLOCATION_BYTES   (0x2E000 * 2)
++#else
+ #define MUSIC_ALLOCATION_BYTES   0x2E000
++#endif
+ #define MUSIC_MEMP_BANK                6
+ 
+ /**
+@@ -594,11 +621,19 @@ s16 *g_sndSfxSlotVolume;
+  */
+ u16 *g_sndSfxSlotNaturalVolume;
+ 
++#ifdef TARGET_N64
+ extern u32 _sfxtblSegmentRomStart;
+ extern u32 _sfxctlSegmentRomStart;
+ extern u32 _instrumentstblSegmentRomStart;
+ extern u32 _instrumentsctlSegmentRomStart;
+ extern u32 _musicsampletblSegmentRomStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ 
+ /**
+  * 75F0	700069F0
+@@ -687,10 +722,39 @@ void musicSeqPlayerInit(void)
+     g_musicDataTable = alHeapAlloc(&g_musicHeap, 1, size);
+     romCopy(g_musicDataTable, (void *)tblSegmentRomStartAddress, size);
+ 
++#ifdef GE_HOST_PORT
++    /*
++     * The 16 bytes just DMA'd are cartridge bytes: big-endian. seqCount reads as
++     * 16128 (0x3F00) instead of 63, so the size below comes out as 258052 rather
++     * than 508, alHeapAlloc returns NULL, and the next romCopy writes to it.
++     *
++     * Only the header is swapped here -- the entries have not been read yet.
++     * sizeof(RareALSeqData) is 8 again because the struct is pinned
++     * (hostcompat/ge_n64ptr.h); before that it was 16 and this size was wrong
++     * for a second, independent reason.
++     */
++    geSwap16((unsigned char *)&g_musicDataTable->seqCount);
++    geSwap16((unsigned char *)&g_musicDataTable->unk);
++#endif
++
+     tblSegmentSize = (sizeof(RareALSeqData) * g_musicDataTable->seqCount) + 4;
+     g_musicDataTable = alHeapAlloc(&g_musicHeap, 1, tblSegmentSize);
+     romCopy(g_musicDataTable, (void *)tblSegmentRomStartAddress, ALIGN16_a(tblSegmentSize));
+ 
++#ifdef GE_HOST_PORT
++    /* The full table has just been re-read raw, so the header needs swapping
++       again, and now every entry with it. */
++    {
++        s32 gei, gen;
++        geSwap16((unsigned char *)&g_musicDataTable->seqCount);
++        geSwap16((unsigned char *)&g_musicDataTable->unk);
++        gen = g_musicDataTable->seqCount;
++        for (gei = 0; gei < gen; ++gei) {
++            geSwap_RareALSeqData(&g_musicDataTable->seqArray[gei]);
++        }
++    }
++#endif
++
+     // end auReadSeqFileHeader
+ 
+     musicSeqFileNew(g_musicDataTable, (u8*)&_musicsampletblSegmentRomStart);
+diff --git a/src/music.h b/src/music.h
+index 7c236fd..599f75c 100644
+--- a/src/music.h
++++ b/src/music.h
+@@ -1,6 +1,16 @@
+ #ifndef _MUSIC_H_
+ #define _MUSIC_H_
+ #include <ultra64.h>
++
++#ifdef GE_HOST_PORT
++/* GE_N64PTR: 4-byte pointers inside structs that describe cartridge data, so
++   the host layout matches the N64's. Expands to nothing off the host path, so
++   the N64 token stream is unchanged. See hostcompat/ge_n64ptr.h. */
++#include <ge_n64ptr.h>
++#else
++#define GE_N64PTR
++#endif
++
+ #include <PR/libaudio.h>
+ 
+ #define VOLUME_MAX 0x7fff
+@@ -19,7 +29,7 @@
+ typedef struct
+ {
+     // address is offset from the start of .sbk file
+-    u8 *address;
++    u8 * GE_N64PTR address;
+ 
+     // seq length after uncompressed.
+     u16 uncompressed_len;
+diff --git a/src/sched.c b/src/sched.c
+index 6f06641..811f6d5 100644
+--- a/src/sched.c
++++ b/src/sched.c
+@@ -331,7 +331,30 @@ void __scHandleRetrace(OSSched *sc) {
+             __scExec(sc, sp, dp);
+     }
+     for (client = sc->clientList; client != 0; client = client->next) {
++#ifdef GE_HOST_PORT
++        /*
++         * `*((s32*)client + 2)` reads the word at byte offset 8.
++         *
++         * OSScClient is {next, msgQ} -- 8 bytes on the N64 -- so offset 8 is one
++         * past the end of the struct. That is not a decomp mistake: the clients
++         * live in `OSScClient gfxClient[3]` (sched.c:71), so the word being read
++         * is gfxClient[1].next, and only [0] is ever registered. It is zero, the
++         * condition is always true, and the N64 sends a retrace to every client
++         * every frame -- which is also what the stock SDK sched.c does.
++         *
++         * On a 64-bit host the element is 16 bytes, so offset 8 lands inside
++         * msgQ instead: non-null, condition false, and messages go out only on
++         * even frames. Measured: 15 sends in 120 frames, and bossMainloop sat
++         * blocked on gfxFrameMsgQ forever -- which is why the port ran 600
++         * frames without ever issuing a graphics task.
++         *
++         * Reading the next ARRAY ELEMENT reproduces the N64 read exactly and is
++         * well-defined on both.
++         */
++        if ((((OSScClient *)client)[1].next == 0) || ((sc->frameCount & 1) == 0)) {
++#else
+         if ((*((s32*)client + 2) == 0) || ((sc->frameCount & 1) == 0)) {
++#endif
+             osSendMesg(client->msgQ, (OSMesg) &sc->retraceMsg, OS_MESG_NOBLOCK);
+         }
+     }
+diff --git a/src/tlb_manage.c b/src/tlb_manage.c
+index e78a3d8..49107a6 100644
+--- a/src/tlb_manage.c
++++ b/src/tlb_manage.c
+@@ -105,7 +105,15 @@ u32 g_tlbmanageMappingTableEnd;
+  */
+ u8 (*g_tlbmanageTlbAllocatedBlock) [TLB_BLOCK_SIZE];
+ 
++#ifdef TARGET_N64
+ extern u8 *_gameSegmentRomStart;
++#else
++/* Host: these names are macros from hostcompat/ge_segments_compat.h -- see
++   there for why. The declarations below cannot be parsed once the macros are
++   defined, and are not needed, so the N64 path keeps them and the host path
++   takes the header instead. */
++#include <ge_segments_compat.h>
++#endif
+ extern u8 *sp_boot;
+ 
+ 
+@@ -130,7 +138,49 @@ void tlbmanageEstablishManagementTable(void)
+         g_tlbMappingTable[i].entry0 = 1;
+     }
+ 
++#ifdef TARGET_N64
+     g_tlbmanageTlbAllocatedBlock = (u8(*)[TLB_BLOCK_SIZE]) (((u32)&sp_boot & ~(PAGE_SIZE - 1)) - (MAPPING_TABLE_COUNT * PAGE_SIZE));
++#else
++    /*
++     * Host: this block has to live in RDRAM, and &sp_boot does not.
++     *
++     * On N64 every static is in RDRAM, so placing the TLB paging block just
++     * below the boot stack put it in RDRAM by construction. In this port the
++     * game's statics live in the host executable's BSS, so &sp_boot is around
++     * 0x536000 -- and src/boss.c:218 uses this pointer as the TOP of the main
++     * memory pool:
++     *
++     *     start = PHYS_TO_K0(osVirtualToPhysical(&_bssSegmentEnd));   // 0x8008E360
++     *     mempCheckMemflagTokens(start, (u32)tlbmanageGetTlbAllocatedBlock() - start);
++     *
++     * so the pool ran from RDRAM to a host static, its size underflowed, and
++     * the allocator handed out pointers into the executable's .text. The
++     * symptom was a segfault in memcpy() with a destination inside a FUNCTION
++     * (`fileLoadSettingsForFolder+403`) during language-file loading -- a long
++     * way from anything about memory pools.
++     *
++     * The port does not page through the TLB (src/ultra/os_tlb.c), so this
++     * block is only meaningful here as the ceiling of the heap. Placing it near
++     * the top of the 8 MB window gives the game about 7 MB of RDRAM to allocate
++     * from, which is more than the 4 MB retail machine had.
++     */
++    /*
++     * Reserve only the block itself, not the mapping table behind it.
++     *
++     * The mapping table exists to page data in through the TLB. This port never
++     * does that -- every address is mapped directly -- so those pages are dead
++     * space, and they sat directly below the heap ceiling: 0xB6000 of RDRAM
++     * (745 KB) that nothing could ever use.
++     *
++     * It mattered because MEMPOOL_PERMANENT is carved to end exactly here, and
++     * libaudio's runtime structs are 1.5-2x larger on a 64-bit host. The music
++     * heap needed to grow and had 864 bytes of headroom; the game's own
++     * out-of-memory trap (memp.c:200, `while (1);`) then hung the boot rather
++     * than failing.
++     */
++    g_tlbmanageTlbAllocatedBlock =
++        (u8(*)[TLB_BLOCK_SIZE]) (0x80800000u - TLB_BLOCK_SIZE);
++#endif
+     g_tlbmanageMappingTableEnd = ((u32)&g_tlbManagementTable) + 0xFFC08000;
+ }
+ 
