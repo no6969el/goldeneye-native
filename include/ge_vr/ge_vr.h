@@ -34,6 +34,22 @@ extern "C" {
  */
 #define GE_VR_UNITS_PER_METRE 100.0f
 
+/*
+ * Minimum near plane the stereo frustum will use, in game units (10 cm).
+ *
+ * GoldenEye's world near plane is per-level data, not a constant: it is
+ * Visibility.BlendMultiplier in fog_tables[] (bgfog.c), reaching guPerspectiveF
+ * via viSetZRange() and g_ViBackData->znear (fr.c). Across the level table it
+ * runs 2..30 units; Surface and Surface 2 use 2, which is two centimetres.
+ *
+ * geVrBuildProjectionF() clamps znear up to this floor. It is a deliberate
+ * divergence from the N64 image, made because a 2 cm near plane in stereo
+ * spends depth precision on nothing and sits inside the comfort floor of every
+ * headset. zfar is NOT clamped: it is per-level (1000..20000 units), changes on
+ * environment transitions, and the game's value is the right one.
+ */
+#define GE_VR_MIN_ZNEAR_UNITS 10.0f
+
 typedef enum {
     GE_VR_EYE_LEFT  = 0,
     GE_VR_EYE_RIGHT = 1,

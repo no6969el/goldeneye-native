@@ -73,6 +73,22 @@ Native PC recompilation of the **cancelled Xbox 360 remaster**, not the N64
 game. XenonRecomp lineage, ReXGlue SDK / MSVC / Python 3 build. Known AMD GPU
 crashes. Author notes AI assistance in development.
 
+Re-confirmed 2026-08-21 by direct inspection, because this entry is easy to
+misread as a viable recomp target: `ge_manifest.toml` names `assets/default.xex`,
+`ge_config.toml` is PowerPC (`r3`, `r30`, `cr6`) hooking raw addresses like
+`0x82117B44` with no C symbol names anywhere, and it patches `XamInputGetState`.
+Nothing in `n64decomp/007` exists in it. **The four camera accessors have no
+counterpart here.**
+
+One thing in it is worth having, though. Its config contains:
+
+> `# hardcode_near_clip_to_2: re-store 2.0f at the per-fog near-clip store site`
+
+A separate team, on a different port of this game, independently found the near
+clip to be **per-fog data** and pinned it at 2.0 — the exact low end of the
+2..30 range traced through `fog_tables[]` in `VR-PLAN.md` §6.1. Independent
+corroboration from a codebase we are not using.
+
 **[`ericksa1417/GoldenEye-Recomp`](https://github.com/ericksa1417/GoldenEye-Recomp)** — Unlicense. Windows-focused fork of the above.
 
 Irrelevant to a 6DoF VR project built on the N64 game: different assets,
@@ -150,10 +166,41 @@ repository without relicensing the combined work under GPL-3. Options:
 |---|---|
 | **Keep it external** — user builds it separately, we ship the VR layer against it | Cleanest. Same pattern as our `patches/` model. Preserves our MIT. **Preferred.** |
 | Relicense `GoldeneyeVR-N64-OG` as GPL-3 | Permitted (we own the copyright) but forecloses permissive reuse forever |
-| Go to upstream components directly | `N64Recomp` and `N64ModernRuntime` are MIT — more work, better license outcome |
+| Go to upstream components directly | ~~`N64Recomp` and `N64ModernRuntime` are MIT~~ — **wrong, see below** |
 
-**Open item, gates the decision: confirm RT64's own license.** It was not
-verified during this survey and it sits underneath every option above.
+**Settled 2026-08-21.** Every component of the recomp stack was checked
+directly rather than taken second-hand. The distinction that matters is not
+which licences appear, but which components are *linked into the shipped
+binary*:
+
+| Component | Licence | Linked into shipped host? |
+|---|---|---|
+| `rt64/rt64` | MIT (`LICENSE`) | yes |
+| `N64Recomp/N64Recomp` | MIT (`LICENSE`) | **no — build-time recompiler, a tool** |
+| `N64Recomp/N64ModernRuntime` (`librecomp`, `ultramodern`) | **GPL-3.0** (`COPYING`, verbatim GPLv3) | **yes** |
+
+`N64ModernRuntime` carries a single top-level `COPYING` and no per-subtree
+licence files; `librecomp` and `ultramodern` have no separate grant. The one MIT
+header inside it (`librecomp/src/euc-jp.cpp`) is vendored third-party code, not
+a carve-out.
+
+So the GPL-3.0 obligation comes from **exactly one component**, and
+`N64Recomp` being MIT is irrelevant to the outcome — a compiler's licence does
+not travel into what it compiles. RT64 being MIT does not rescue the
+combination either:
+
+- **Row 3 of the table above is dead.** Going to upstream components directly
+  does not produce a permissively-licensed host; it produces the same GPL-3.0
+  obligation by a longer route.
+- **Row 1 survives and is now the only clean option.** Keeping the recomp host
+  external, with the MIT VR layer shipped against it, is unaffected — MIT links
+  into GPL-3.0 without difficulty, and `include/ge_vr/` stays MIT and stays
+  reusable.
+- **Anything we distribute as a combined binary is GPL-3.0, with source.** That
+  is a licensing decision for this project to make deliberately, and it should
+  be made before Phase 0 of `VR-PLAN.md`, not after Phase 3.
+- It is a standing argument for keeping `goldeneye-native` alive: it is the path
+  that is not encumbered.
 
 `goldenpad` has no outbound license grant at all and must not be vendored under
 any option.

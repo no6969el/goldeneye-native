@@ -137,6 +137,16 @@ extern "C" int geVrBuildProjectionF(float mf[4][4], unsigned short* perspNorm,
     if (s.current_eye == GE_VR_EYE_UNION)
         fov = unionFov(s.frame.eye[0].fov, s.frame.eye[1].fov);
 
+    // The game's world near plane is per-level data, not a constant: it is
+    // Visibility.BlendMultiplier from fog_tables[] (src/game/bgfog.c:301),
+    // reaching viSetZRange -> g_ViBackData->znear -> guPerspectiveF at
+    // src/fr.c:709. Across the level table it runs 2..30 units, and 2 units is
+    // 2 cm. Harmless on the N64's W-buffer; in stereo it throws away depth
+    // precision and sits inside the headset's own comfort floor. Clamp it here
+    // rather than in the host, so every host gets the same divergence.
+    // zfar is passed through unchanged — it is per-level and legitimately so.
+    if (znear < GE_VR_MIN_ZNEAR_UNITS) znear = GE_VR_MIN_ZNEAR_UNITS;
+
     uint16_t pn = 0;
     projectionFromFovF(mf, &pn, fov, znear, zfar, scale);
     if (perspNorm) *perspNorm = pn;

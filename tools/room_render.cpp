@@ -227,11 +227,20 @@ int main(int argc, char** argv) {
     std::printf("  bounds %.0f x %.0f x %.0f, camera at %.0f units\n",
                 hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2], dist);
 
-    // Inspection camera, NOT the game's projection. The game clips at
-    // znear=10 / zfar=300 (src/game/bondview2.c:8423) while rooms average ~576
-    // units across, so a game-accurate frustum cannot contain a whole room —
-    // that short draw distance is why GoldenEye is so foggy. For verifying
-    // geometry we want to see all of it at once.
+    // Inspection camera, NOT the game's projection.
+    //
+    // Corrected 2026-08-21. An earlier comment here claimed the game clips at
+    // znear=10 / zfar=300, citing src/game/bondview2.c:8423. That call site is
+    // the zoom/scope path, not the world. The world projection is built at
+    // src/fr.c:709 from g_ViBackData->znear/zfar, which are per-level data set
+    // by viSetZRange() from fog_tables[] (src/game/bgfog.c:301): znear runs
+    // 2..30 units and zfar runs 1000..20000 across the level table, with a
+    // fogless fallback of 15 / 10000 (bgfog.c:480). Rooms average ~576 units
+    // across, so the game's frustum contains a room comfortably; the fog, not
+    // the far plane, is what limits what you see.
+    //
+    // For verifying geometry we still want the whole room on screen at once,
+    // so this stays an inspection frustum rather than a game-accurate one.
     const Mat4 proj = perspective(45.0f, float(W) / float(H), 1.0f, dist * 4.0f);
     const Mat4 view = lookAtOrigin(dist, 0.7f, 0.45f);
     const Mat4 centre = translate(-(lo[0] + hi[0]) * 0.5f, -(lo[1] + hi[1]) * 0.5f,
