@@ -1,0 +1,22 @@
+--- a/getv/port/src/port_input.c
++++ b/getv/port/src/port_input.c
+@@ -0,0 +0,0 @@
+ /* vr440 Beta: apply these edits in port_input.c (geXrActBtnB / GETV_XR_BUTTONS banner).
+  *
+  * GETV_XR_BUTTONS=1 face bindings on the walk hand:
+  *   A -> use/reload (unchanged)
+- *   B -> weapon (default GE_XRACT_WEAPON; GETV_XR_BTN_B=weapon)
++ *   B -> start/pause (default GE_XRACT_START; GETV_XR_BTN_B=weapon restores vr439)
+  *   squeeze -> aim, trigger -> fire
+  *   recenter -> both thumbstick clicks (unchanged)
+  */
+@@
+ static s32 geXrActBtnB(void)
+ {
+     if (ge_xr_act_btn_b < 0) {
+         const char *e = getenv("GETV_XR_BTN_B");
+-        ge_xr_act_btn_b = geXrParseAct(e, GE_XRACT_WEAPON);
++        ge_xr_act_btn_b = geXrParseAct(e, GE_XRACT_START);
+     }
+     return ge_xr_act_btn_b;
+ }

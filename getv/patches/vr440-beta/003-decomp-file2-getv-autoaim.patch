@@ -1,0 +1,42 @@
+--- a/src/game/file2.c	2026-09-16 16:15:34.888756798 +0000
++++ b/src/game/file2.c	2026-09-16 16:18:16.737457345 +0000
+@@ -8,6 +8,9 @@
+ #include "file2.h"
+ #include "front.h"
+ #include "cheat.h"
++#ifdef GE_PORT_NATIVE
++#include <stdlib.h>
++#endif
+ 
+ 
+ // bss
+@@ -1269,6 +1272,29 @@
+ 
+         set_cur_player_look_vertical_inverted((options & OPTION_INVERTLOOK) != FALSE);
+         cur_player_set_autoaim((options & OPTION_AUTOAIM) != FALSE);
++
++#ifdef GE_PORT_NATIVE
++        {
++            static s32 ge_autoaim = -2;
++            if (ge_autoaim == -2)
++            {
++                const char *env = getenv("GETV_AUTOAIM");
++                if (env == NULL || env[0] == '\0')
++                {
++                    ge_autoaim = -1;
++                }
++                else
++                {
++                    ge_autoaim = (env[0] == '1') ? 1 : 0;
++                }
++            }
++            if (ge_autoaim >= 0)
++            {
++                cur_player_set_autoaim(ge_autoaim);
++                osSyncPrintf("[getv] auto-aim forced to %d (GETV_AUTOAIM)\n", ge_autoaim);
++            }
++        }
++#endif
+         cur_player_set_aim_control((options & OPTION_AIMCONTROL) != FALSE);
+         cur_player_set_sight_onscreen_control((options & OPTION_SIGHTONSCREEN) != FALSE);
+         cur_player_set_lookahead((options & OPTION_LOOKAHEAD) != FALSE);
