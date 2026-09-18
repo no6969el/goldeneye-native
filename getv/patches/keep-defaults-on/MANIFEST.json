@@ -1,0 +1,52 @@
+{
+  "comment": "Ship-default-ON graduation (vr441 KEEP). Unset/empty = ship ON; explicit 0 (or dig string) = OFF. See README.md.",
+  "bool_on_unset": [
+    "GETV_VR_CORPSEKEEP",
+    "GETV_VR_TEXINVAL",
+    "GETV_VR_TEXDLRETAG",
+    "GETV_VR_VFXTMEM",
+    "GETV_VR_ADSSIGHT",
+    "GETV_VR_ADSCULL",
+    "GETV_STEREO_REBUILD",
+    "GETV_STEREO_HUDGATE",
+    "GETV_XR_HEAD_TRANSLATE",
+    "GETV_XR_PLAY_AUTORECENTER",
+    "GETV_XR_PLAY_SRCFBO",
+    "GETV_VR_DRAWALL",
+    "GETV_XR_PLAY",
+    "GETV_VR_SKYMESH",
+    "GETV_VR_GUNAIM",
+    "GETV_VR_GUNMOUNT"
+  ],
+  "int_on_unset": {
+    "GETV_VR_HITSNAP": 2,
+    "GETV_VR_VTXGUARD": 64,
+    "GETV_SUPERSAMPLE": 3,
+    "GETV_VR_CORPSEKEEP_MAX": 48,
+    "GETV_VR_CORPSEKEEP_CEIL": 440,
+    "GETV_VR_PLAYSPACE": 1
+  },
+  "string_on_unset": {
+    "GETV_STEREO_SRC": "xr"
+  },
+  "int_on_unset_optional": {},
+  "do_not_touch": [
+    "GETV_AUTOAIM",
+    "GETV_XR_FLOOR_INJECT",
+    "GETV_XR_TURN_SCALE",
+    "GETV_XR_BTN_A",
+    "GETV_XR_BTN_B",
+    "GETV_XR_BUTTONS",
+    "GETV_XR_FOVMATCH",
+    "GETV_VR_OCCLSKIP",
+    "GETV_VR_FOGSKIP",
+    "GETV_VR_DISTSKIP",
+    "GETV_VR_WATERTILE"
+  ],
+  "scan_roots": [
+    "getv/port",
+    "getv/src",
+    "vendor/ge-decomp/src"
+  ],
+  "ship_comment": "ship default ON; dig sets 0"
+}

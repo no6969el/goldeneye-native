@@ -1,0 +1,65 @@
+--- a/getv/port/fast3d/gfx_pc.c
++++ b/getv/port/fast3d/gfx_pc.c
+@@ -4,7 +4,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_VR_TEXINVAL");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -14,7 +14,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_VR_TEXDLRETAG");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -34,7 +34,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_VR_CORPSEKEEP");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -44,7 +44,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_STEREO_REBUILD");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -54,7 +54,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_STEREO_HUDGATE");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -64,7 +64,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_XR_PLAY_SRCFBO");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
+@@ -74,7 +74,7 @@
+     static int on = -1;
+     if (on < 0) {
+         const char *e = getenv("GETV_VR_DRAWALL");
+-        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0;
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 1 /* ship default ON; dig sets 0 */;
+     }
+     return on;
+ }
