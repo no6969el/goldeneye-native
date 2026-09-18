@@ -34,18 +34,24 @@ and `packaging/KEEP-SHIP-DEFAULTS.md`.
 | `GETV_XR_PLAY_SRCFBO` | ON | OFF |
 | `GETV_SUPERSAMPLE` | `3` | honors `0` / `1` / `2` when set |
 | `GETV_VR_DRAWALL` | ON | OFF |
+| `GETV_VR` | ON | OFF |
+| `GETV_VR_VFXSHIFT` | ON | OFF |
+| `GETV_TEX16BE` / `GETV_TEX32BE` | ON | OFF |
+| `GETV_XR_PLAY` / `GETV_VR_SKYMESH` | ON | OFF |
+| `GETV_VR_GUNAIM` / `GETV_VR_GUNMOUNT` | ON | OFF |
 
 Also flipped when the same unset-OFF pattern appears (vr441 boot KEEP, not DIG):
 
 - `GETV_STEREO_SRC` -> `xr`
-- `GETV_XR_PLAY`
-- `GETV_VR_SKYMESH`
 - `GETV_VR_PLAYSPACE` -> `1`
-- `GETV_VR_GUNAIM` / `GETV_VR_GUNMOUNT`
+- `GETV_VR_CORPSEKEEP_MAX` -> `48`, `GETV_VR_CORPSEKEEP_CEIL` -> `440`
+
+**Ship ints (not bool ON):** `GETV_VR_PROPFOGALPHA` unset -> `0` (opaque props;
+do not arm `GETV_VR_PROPFOGW`). `GETV_VR_OCCLSKIP` unset -> `1` (dam crates path).
 
 **Not changed:** `GETV_AUTOAIM`, floor inject, turn scale, button maps, `FLAT_FORCE`,
-`GETV_XR_FOVMATCH`, or DIG_OFF (`GETV_VR_OCCLSKIP` / `FOGSKIP` / `DISTSKIP` /
-`WATERTILE`).
+`GETV_XR_FOVMATCH`, `GETV_VR_PROPFOGW`, or other wiped dig falsifiers (`FOGSKIP` /
+`DISTSKIP` / `WATERTILE`). See `GRADUATED-KNOBS.md` for the full list.
 
 ---
 
@@ -101,9 +107,11 @@ Also flipped when the same unset-OFF pattern appears (vr441 boot KEEP, not DIG):
 | `MANIFEST.json` | Gate list and ship values (source of truth for the script) |
 | `001-harness-bool-keep.patch` | Example bool flips (typical ternary shape) |
 | `002-harness-int-keep.patch` | Example int flips (`GETV_SUPERSAMPLE`, etc.) |
+| `GRADUATED-KNOBS.md` | Short hyphenated graduation note |
 | `../tools/flip_keep_ship_defaults.py` | Scans `getv/port`, `vendor/ge-decomp/src` |
 
 Run `python3 getv/tools/flip_keep_ship_defaults.py --self-test` after edits.
+The script skips gates already at the ship value (never emits `? 1 : 1`).
 
 ---
 

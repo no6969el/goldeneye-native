@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Flip GETV KEEP arms to ship-default-ON when env is unset (dig sets 0).
+Flip GETV KEEP arms to ship defaults when env is unset (dig sets explicit value).
 
-Workshop root (private):
-  F:/Projects/GEVR/GoldenEyeVR/goldeneye-native
+Pattern (match product port):
+  (e != NULL && *e != '\\0') ? <dig> : <ship> /* ship default ON; dig sets 0 */
+
+Never emits a no-op ternary such as `? 1 : 1` or identical int branches.
 """
 from __future__ import annotations
 
@@ -17,7 +19,23 @@ from pathlib import Path
 from typing import Iterable
 
 SHIP_COMMENT = "ship default ON; dig sets 0"
-WINDOW = 420
+WINDOW = 480
+
+# (e != NULL && *e != '\0') ? dig : unset;
+TERNARY_E_POS = re.compile(
+    r"\(\s*e\s*!=\s*NULL\s*&&\s*\*e\s*!=\s*'\\0'\s*\)\s*\?\s*(?P<dig>[^:]+?)\s*:\s*(?P<unset>[^;]+?)\s*;",
+    re.MULTILINE,
+)
+
+# (!e || !*e) ? ship : dig;
+TERNARY_E_NEG = re.compile(
+    r"\(\s*!\s*e\s*\|\|\s*!\s*\*e\s*\)\s*\?\s*(?P<unset>[^:]+?)\s*:\s*(?P<dig>[^;]+?)\s*;",
+    re.MULTILINE,
+)
+
+STALE_DEFAULT_COMMENT = re.compile(
+    r"/\*\s*DEFAULT\s+0\s+stale\s*\*/", re.IGNORECASE
+)
 
 
 @dataclass
@@ -46,15 +64,16 @@ class Manifest:
     def blocked(self, gate: str) -> bool:
         return gate in self.do_not_touch
 
-    def ship_int(self, gate: str) -> int | None:
+    def ship_value(self, gate: str) -> int | str | bool | None:
+        if gate in self.string_on_unset:
+            return self.string_on_unset[gate]
         if gate in self.int_on_unset:
             return self.int_on_unset[gate]
         if gate in self.int_on_unset_optional:
             return self.int_on_unset_optional[gate]
+        if gate in self.bool_on_unset:
+            return True
         return None
-
-    def ship_bool(self, gate: str) -> bool:
-        return gate in self.bool_on_unset
 
 
 def iter_source_files(root: Path, scan_roots: Iterable[str]) -> list[Path]:
@@ -72,22 +91,92 @@ def iter_source_files(root: Path, scan_roots: Iterable[str]) -> list[Path]:
     return sorted(out)
 
 
-def replace_unset_zero(window: str, ship: int | bool, comment: str) -> tuple[str, bool]:
-    """Replace the first unset-branch `: 0;` after getenv in this window."""
+def _strip_comment(val: str) -> str:
+    if "/*" in val:
+        val = val[: val.index("/*")]
+    return val.strip()
+
+
+def _dig_is_noop(dig: str, ship_literal: str) -> bool:
+    """True if replacing unset with ship would make both branches identical."""
+    d = _strip_comment(dig)
+    return d == ship_literal
+
+
+def _format_ship(ship: int | str | bool, comment: str) -> str:
+    if isinstance(ship, bool):
+        lit = "1" if ship else "0"
+    elif isinstance(ship, str):
+        lit = f'"{ship}"'
+    else:
+        lit = str(ship)
+    return f"{lit} /* {comment} */"
+
+
+def flip_window(window: str, ship: int | str | bool, comment: str) -> tuple[str, bool]:
     if f"/* {comment} */" in window:
         return window, False
-    pat = re.compile(r":\s*0\s*;")
+
+    ship_lit = (
+        "1"
+        if ship is True
+        else ("0" if ship is False else (f'"{ship}"' if isinstance(ship, str) else str(ship)))
+    )
+
+    m = TERNARY_E_POS.search(window)
+    if m:
+        dig, unset = m.group("dig"), m.group("unset")
+        if _strip_comment(unset) == ship_lit:
+            new_window = STALE_DEFAULT_COMMENT.sub("", window)
+            return new_window, new_window != window
+        if _dig_is_noop(dig, ship_lit):
+            return window, False
+        replacement = (
+            f"(e != NULL && *e != '\\0') ? {dig.strip()} : {_format_ship(ship, comment)};"
+        )
+        new_window = window[: m.start()] + replacement + window[m.end() :]
+        new_window = STALE_DEFAULT_COMMENT.sub("", new_window)
+        return new_window, True
+
+    m = TERNARY_E_NEG.search(window)
+    if m:
+        unset, dig = m.group("unset"), m.group("dig")
+        if _strip_comment(unset) == ship_lit:
+            return window, False
+        if _strip_comment(dig) == ship_lit:
+            return window, False
+        replacement = (
+            f"(!e || !*e) ? {_format_ship(ship, comment)} : {dig.strip()};"
+        )
+        new_window = window[: m.start()] + replacement + window[m.end() :]
+        return new_window, True
+
+    return window, False
+
+
+def flip_string_unset(window: str, ship: str, comment: str) -> tuple[str, bool]:
+    """unset branch uses strcmp / string literal (e.g. GETV_STEREO_SRC)."""
+    if f"/* {comment} */" in window:
+        return window, False
+    # cached = "flat";  -> cached = "xr" /* comment */;
+    pat = re.compile(
+        r'((?:cached|src|mode)\s*=\s*)"[^"]*"\s*;',
+    )
     m = pat.search(window)
     if not m:
         return window, False
-    val = "1" if ship is True or ship == 1 else str(ship)
-    new = window[: m.start()] + f": {val} /* {comment} */;" + window[m.end() :]
-    return new, True
+    prefix = m.group(1)
+    new_window = (
+        window[: m.start()]
+        + f'{prefix}"{ship}" /* {comment} */;'
+        + window[m.end() :]
+    )
+    return new_window, True
 
 
 def flip_text(text: str, manifest: Manifest) -> tuple[str, int]:
     total = 0
-    gates: list[tuple[str, int | bool]] = []
+    gates: list[tuple[str, int | str | bool]] = []
     for g in manifest.bool_on_unset:
         if not manifest.blocked(g):
             gates.append((g, True))
@@ -97,12 +186,18 @@ def flip_text(text: str, manifest: Manifest) -> tuple[str, int]:
     for g, ship in manifest.int_on_unset_optional.items():
         if not manifest.blocked(g):
             gates.append((g, ship))
+    for g, ship in manifest.string_on_unset.items():
+        if not manifest.blocked(g):
+            gates.append((g, ship))
 
     for gate, ship in gates:
         for m in re.finditer(rf'getenv\(\s*"{re.escape(gate)}"\s*\)', text):
             start = m.end()
             window = text[start : start + WINDOW]
-            new_window, did = replace_unset_zero(window, ship, manifest.ship_comment)
+            if isinstance(ship, str):
+                new_window, did = flip_string_unset(window, ship, manifest.ship_comment)
+            else:
+                new_window, did = flip_window(window, ship, manifest.ship_comment)
             if did:
                 total += 1
                 text = text[:start] + new_window + text[start + WINDOW :]
@@ -167,14 +262,22 @@ static int ge_gate(void) {
     const char *e = getenv("GETV_VR_TEXINVAL");
     on = (e != NULL && *e != '\\0') ? (atoi(e) != 0) : 0;
 }
+static int ge_already(void) {
+    const char *e = getenv("GETV_VR_DRAWALL");
+    on = (e != NULL && *e != '\\0') ? (atoi(e) != 0) : 1;
+}
 static int ge_ss(void) {
     const char *e = getenv("GETV_SUPERSAMPLE");
     ss = (e != NULL && *e != '\\0') ? atoi(e) : 0;
 }
+static int ge_fog(void) {
+    const char *e = getenv("GETV_VR_PROPFOGALPHA");
+    v = (e != NULL && *e != '\\0') ? atoi(e) : 1;
+}
 """
     m = Manifest(
-        bool_on_unset=["GETV_VR_TEXINVAL"],
-        int_on_unset={"GETV_SUPERSAMPLE": 3},
+        bool_on_unset=["GETV_VR_TEXINVAL", "GETV_VR_DRAWALL"],
+        int_on_unset={"GETV_SUPERSAMPLE": 3, "GETV_VR_PROPFOGALPHA": 0},
         string_on_unset={},
         int_on_unset_optional={},
         do_not_touch=[],
@@ -182,9 +285,18 @@ static int ge_ss(void) {
         ship_comment=SHIP_COMMENT,
     )
     out, n = flip_text(sample, m)
-    if n != 2 or ": 1 /*" not in out or ": 3 /*" not in out:
-        print("self-test failed", n, out)
+    if n != 3:
+        print("self-test failed: flip count", n, out)
         return 1
+    if "? 1 : 1" in out.replace(" ", ""):
+        print("self-test failed: noop ternary", out)
+        return 1
+    if ": 1 /*" not in out or ": 3 /*" not in out or ": 0 /*" not in out:
+        print("self-test failed: missing ship comments", out)
+        return 1
+    if "GETV_VR_DRAWALL" in out and out.count(": 1 /* ship default ON") < 2:
+        # DRAWALL should not get a second : 1 branch
+        pass
     print("[keep-defaults] self-test ok")
     return 0
 
