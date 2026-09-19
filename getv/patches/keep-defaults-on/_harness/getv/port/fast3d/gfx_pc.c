@@ -1,4 +1,4 @@
-/* Harness fragment: typical bool KEEP gate (gfx / image path). */
+/* Harness: typical bool KEEP gate (gfx / image path). */
 static int ge_vr_texinval(void)
 {
     static int on = -1;
