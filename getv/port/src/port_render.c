@@ -122,6 +122,20 @@ static int ge_vr_gunmount(void)
     return on;
 }
 
+/* GEVR #74 Rank 1. Unset / empty / 0 = OFF (ship). Chair-only until PASS.
+ * Do not KEEP-ON. Do not add to gevr-*-boot.cmd. Live rebase is in
+ * src/ge_vr_bridge.cpp (geVrGetWeaponModelMatrixF / geVrGetAimRay).
+ * Workshop follow-up: same getenv next to geStereoXrGunMount / HandWorld. */
+static int ge_vr_gunrebase(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("GETV_VR_GUNREBASE");
+        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* default OFF */
+    }
+    return on;
+}
+
 /* Dam crates #29: ship opaque prop fog + occlusion skip ON when unset. */
 static int ge_vr_propfogalpha(void)
 {

@@ -1,0 +1,13 @@
+rem Chair-only. Do not merge into Start-GEVR.bat / gevr-*-boot.cmd until PASS.
+rem Run AFTER the boot cmd has exported PLAY0 / KEEP (vr442 Latest).
+rem
+rem   1. Start-GEVR.bat
+rem   2. This scratch line on the same cmd:
+set GETV_VR_GUNREBASE=1
+rem
+rem Expect once: [getv][gunrebase] GETV_VR_GUNREBASE=1 arms
+rem
+rem Do not set GETV_VR_HEADYAW / GETV_XR_PLAY_AUTORECENTER / GETV_VR_GUNARM /
+rem GETV_VR_PLAYSPACE. Do not restore GETV_XR_HEAD_TRANSLATE=1.
+rem Do not enable GETV_VR_GUNZ / GETV_VR_HANDSOLID.
+rem Do not call a per-frame recenter.

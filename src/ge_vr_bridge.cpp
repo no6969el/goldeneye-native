@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
 
 #include "xr_input.h"
@@ -56,9 +58,11 @@ BridgeState& S() {
     return s;
 }
 
-// Head pose with recentre applied.
-Pose recenteredHead(const BridgeState& s) {
-    Pose p = s.frame.head;
+// Recentre is one yaw + one XZ snapshot (recenter_pos.y stays 0 — height is
+// calibration / #45). Head already uses this. GETV_VR_GUNREBASE=1 applies the
+// same number to grip/aim (DIG #74 / docs/86 rule 8) so HANDYAW and HEADYAW
+// cannot pivot around different origins.
+Pose applyRecenterYawXz(const BridgeState& s, Pose p) {
     const Quat yaw = quatFromAxisAngle(Vec3{0, 1, 0}, -s.recenter_yaw);
     p.orientation = quatMul(yaw, p.orientation);
     Vec3 d{p.position.x - s.recenter_pos.x,
@@ -66,6 +70,42 @@ Pose recenteredHead(const BridgeState& s) {
            p.position.z - s.recenter_pos.z};
     p.position = quatRotate(yaw, d);
     return p;
+}
+
+Pose recenteredHead(const BridgeState& s) {
+    return applyRecenterYawXz(s, s.frame.head);
+}
+
+// GETV_VR_GUNREBASE: unset / empty / 0 = OFF (ship / HT=0 modem KEEP). 1 = ON.
+// Chair-only until PASS. Not KEEP-ON. Do not add to gevr-*-boot.cmd.
+static int ge_vr_gunrebase(void) {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = std::getenv("GETV_VR_GUNREBASE");
+        on = (e != nullptr && *e != '\0') ? (std::atoi(e) != 0) : 0;
+        if (on) {
+            std::printf("[getv][gunrebase] GETV_VR_GUNREBASE=1 arms\n");
+        }
+    }
+    return on;
+}
+
+// Head-relative XZ (keep grip/aim Y), then the camera parent. On this ABI the
+// camera is the Bond capsule when HT=0 — GUNMOUNT already adds that origin.
+// Physical room strafe therefore no longer walks the fist around the last
+// chord. Does not call geVrRecenter(). Does not flip HEADYAW / AUTORECENTER /
+// GUNARM / PLAYSPACE. Does not restore HEAD_TRANSLATE or enable GUNZ.
+Pose gunRebasedPose(const BridgeState& s, Pose raw) {
+    Pose hand = applyRecenterYawXz(s, raw);
+    if (!s.frame.head_valid) return hand;
+    const Pose head = applyRecenterYawXz(s, s.frame.head);
+    hand.position.x -= head.position.x;
+    hand.position.z -= head.position.z;
+    return hand;
+}
+
+Pose maybeGunRebase(const BridgeState& s, Pose raw) {
+    return ge_vr_gunrebase() ? gunRebasedPose(s, raw) : raw;
 }
 
 }  // namespace
@@ -237,7 +277,7 @@ extern "C" void geVrGetAimRay(GeVrHand hand, float origin[3], float dir[3]) {
     dir[0] = 0.0f; dir[1] = 0.0f; dir[2] = -1.0f;
     if (!s.active || !s.hand_tracked[h]) return;
 
-    const Pose aim = s.input.hand[h].aim;
+    const Pose aim = maybeGunRebase(s, s.input.hand[h].aim);
     const Vec3 o = xrToGame(aim.position, GE_VR_UNITS_PER_METRE);
     const Vec3 d = poseForward(aim.orientation);
     origin[0] = o.x; origin[1] = o.y; origin[2] = o.z;
@@ -256,7 +296,9 @@ extern "C" void geVrGetWeaponDisplacement(GeVrHand hand, float* dtheta, float* d
     poseToGameAngles(recenteredHead(s).orientation, &head_theta, &head_verta, nullptr);
 
     float aim_theta = 0.0f, aim_verta = 0.0f;
-    poseToGameAngles(s.input.hand[h].aim.orientation, &aim_theta, &aim_verta, nullptr);
+    // Same yaw as the head when GUNREBASE=1 so displacement is not mixed-frame.
+    const Pose aim = maybeGunRebase(s, s.input.hand[h].aim);
+    poseToGameAngles(aim.orientation, &aim_theta, &aim_verta, nullptr);
 
     // Wrap into (-pi, pi]. Without this the weapon snaps 360 degrees whenever the
     // player aims across the yaw seam — visually spectacular, entirely wrong.
@@ -275,8 +317,10 @@ extern "C" int geVrGetWeaponModelMatrixF(GeVrHand hand, float mf[4][4]) {
     if (!s.active || !s.hand_tracked[h]) return 0;
 
     // Grip pose, not aim pose: the model should sit in the fist. The aim pose is
-    // the barrel line and is used only for the hitscan ray.
-    const Mtx4 m = modelMatrixFromPose(s.input.hand[h].grip, GE_VR_UNITS_PER_METRE);
+    // the barrel line and is used only for the hitscan ray. GUNREBASE=1 uses the
+    // same recenter yaw+XZ as the head, then head-relative XZ (left cube too).
+    const Mtx4 m = modelMatrixFromPose(maybeGunRebase(s, s.input.hand[h].grip),
+                                       GE_VR_UNITS_PER_METRE);
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j) mf[i][j] = m.m[i][j];
     return 1;
