@@ -1,10 +1,12 @@
-# RESULT — flat / Play-on-monitor aim snap-to-center ([GEVR #73](https://github.com/no6969el/GEVR/issues/73)) (DIG ONLY)
+# RESULT — flat / Play-on-monitor aim snap-to-center (GEVR #73) (DIG ONLY)
 
 **Status:** DIG. **Not APPLY READY on this public tree.** No C landed.
-**Ask:** On **`Play-on-monitor.bat`** (`GETV_STEREO=0`), pressing the **aim button** pulls aim **back to center**. Owner wants free aim: leave look/aim where you pointed. No recenter-on-ADS.
+**Tracker:** [GEVR #73](https://github.com/no6969el/GEVR/issues/73) — canonical. Do not file a second issue.
+**Ask ([GEVR #73](https://github.com/no6969el/GEVR/issues/73)):** On **`Play-on-monitor.bat`** (`GETV_STEREO=0`), pressing the **aim button** pulls aim **back to center**. Owner wants free aim: leave look/aim where you pointed. No recenter-on-ADS.
+**Issue as filed:** *“Flat / monitor: aim button snaps aim back to center.”* Build **vr442 / Latest**. Headset may differ. Please-include on the issue: bat, mouse vs controller, short clip (no ROM).
 **Headset:** may differ (controller aim). Dig **flat first**; note if VR shares the same recenter.
 **Date:** 2026-09-20.
-**Evidence:** public `goldeneye-native` HEAD (KEEP fragments, XR ABI, vr440 `port_input` snippet), public `no6969el/GEVR` packaging + textbook + **issue #73 already filed**, public `n64decomp/007` `bondview2.c` / `gunfire.c` / `file2.h`. Workshop `port_input.c` / product `bondviewProcessInput` patches are **not on any public remote** (`GEVR` `docs/RELEASE-POLICY.md`).
+**Evidence:** public `goldeneye-native` HEAD (KEEP fragments, XR ABI, vr440 `port_input` snippet), public `no6969el/GEVR` packaging + textbook + **[#73](https://github.com/no6969el/GEVR/issues/73)**, public `n64decomp/007` `bondview2.c` / `gunfire.c` / `file2.h`. Workshop `port_input.c` / product `bondviewProcessInput` patches are **not on any public remote** (`GEVR` `docs/RELEASE-POLICY.md`).
 
 Director can green-light bat pins, a look-ahead / auto-aim A/B, workshop C, or reject from this page alone.
 
@@ -14,7 +16,7 @@ Director can green-light bat pins, a look-ahead / auto-aim A/B, workshop C, or r
 
 | Question | Answer |
 |----------|--------|
-| GitHub issue? | **Already filed.** [GEVR #73](https://github.com/no6969el/GEVR/issues/73) (2026-09-20). **Do not open a second.** Same-family: [#35](https://github.com/no6969el/GEVR/issues/35) / ads-grip DIG (Honey steals stick); textbook `00-STATE` item *“CROSSHAIR AUTO-CENTRES; aiming with the mouse fights it.”* |
+| GitHub issue? | **[#73](https://github.com/no6969el/GEVR/issues/73)** (2026-09-20, owner). **Do not open a second.** Same-family: [#35](https://github.com/no6969el/GEVR/issues/35) / ads-grip DIG (Honey steals stick); textbook `00-STATE` item *“CROSSHAIR AUTO-CENTRES; aiming with the mouse fights it.”* |
 | What yanks on AIM | **Stock Honey ADS.** Aim bit (`CONT_R` **or** `CONT_L`) sets `insightaimmode`. That flips `controldef` to **KISSY**, shows the sight, and feeds the **stick** into the gun/crosshair integrator. Stick at rest → integrator **decays to screen center**. |
 | Look Ahead? | **Related, not the ADS edge.** `OPTION_LOOKAHEAD` is still in `DEFAULT_OPTIONS`. `automovecentreenabled` auto-levels **pitch** while walking. `canLookAhead = !insightaimmode` — Look Ahead is **off while ADS**, on in hip-fire. Pitch snap while walking is a different chair. |
 | AUTOAIM / `GETV_AUTOAIM`? | **Headset boot pins `GETV_AUTOAIM=0`. Monitor bat does not.** Auto-aim is **disabled in ADS** (`canAutoAim = !insightaimmode`). Hip-fire assist can leave the gun off-axis; ADS then looks like a yank to center. New saves already dropped `OPTION_AUTOAIM` (vr440). Old EEPROM can still have it on. |
@@ -123,7 +125,7 @@ crosshair_angle.x = (crosshair_x_pos * (1-damp) * w * 0.5) + w*0.5;
 
 **`turn_x == 0` decays the gun/crosshair to screen centre.** That is retail. It is also exactly “press aim, stick/mouse idle, aim pulls back to center.”
 
-Hard snap helper `sub_GAME_7F06802C` writes `crosshair_angle` / `field_FFC` to the **pixel centre**. Public tree has the body; callers are workshop-side. Treat as a **named center writer** to grep if a sit still yanks after KISSY is parked.
+Hard snap helper `sub_GAME_7F06802C` writes `crosshair_angle` / `field_FFC` to the **pixel centre**. Public `n64decomp/007` has the **body only** — GitHub code search finds **no callers** outside `gunfire.c`. Vanilla does not invoke it on ADS enter. If a sit still yanks after KISSY is parked, first chair grep on the workshop: `7F06802C` / `geVr` wraps around that symbol. Do not assume GETV calls it.
 
 Sight draw: `gunSetSightVisible(GUNSIGHTREASON_NOTAIMING, moveData.aiming)`. ADS **clears** `NOTAIMING` so the stock sight appears — at `crosshair_angle`, which just decayed to centre. Doc `165`: in VR nobody pressed R, so the sight stayed hidden; PLAY0 `ADSSIGHT` is the replacement mark **on the gun ray**.
 
@@ -148,7 +150,7 @@ Honey ADS **steals the stick** (`canLookAhead=0`). That is ads-grip DIG [#35](ht
 
 | Knob / bit | Flat tonight | Role in the yank |
 |------------|--------------|------------------|
-| `GETV_AUTOAIM` | **Unset** on monitor bat. Headset `=0`. | Force `cur_player_set_autoaim`. Unset = save/options. |
+| `GETV_AUTOAIM` | **Unset** on monitor bat. Headset boot `=0`. | Force `cur_player_set_autoaim`. Unset = **save/options win** (vr440 README). `docs/BETA.md` says Auto-Aim **defaults OFF in the shipped exe** (new-folder `DEFAULT_OPTIONS` dropped the bit). Old EEPROM can still have it on — A/B `=0` still. |
 | `OPTION_AUTOAIM` | Removed from `DEFAULT_OPTIONS` (vr440). Old saves may still have it. | Hip-fire only (`canAutoAim`). ADS **turns it off**. Gun that was pulled toward a guard then **springs to centre** on ADS is this. |
 | `GETV_XR_BUTTONS` | Unset on flat | C-default. Squeeze→aim is the vr440 **banner**, not a KEEP pin. |
 | `GETV_XR_BTN_SQUEEZE` | Not in monitor bat (boot wipe is headset-only) | If a pad is plugged in, C-default squeeze can still light `CONT_R`. |
@@ -191,7 +193,7 @@ Scratch copy of `Play-on-monitor.bat`. **Do not** add these to `$requiredBootKno
 
 **Predicted from source:** Arm **A-sight** or **A-vr** is the KEEP leftover. Arm **A-auto** only if the folder still has Auto-Aim on. Arm **A-look** should **fail** the ADS-edge chair (Look Ahead is off during ADS). If **all** bat arms still FAIL, the yank is **stock KISSY** and needs workshop C (§3).
 
-Public ABI already maps pad/XR AIM to `CONT_R`. Keyboard aim (workshop `port_input.c` — typically the N64 R binding) is the same bit.
+Public ABI maps pad/XR AIM to `CONT_R`. GEVR `CONTROLS.md` does **not** name a monitor keyboard AIM key (Tab = pause is the only keyboard line). Workshop `port_input.c` is the map. [#73](https://github.com/no6969el/GEVR/issues/73) asks testers to say **mouse vs controller** — log the physical control on Arm 0; do not invent a public key from other ports.
 
 ---
 
@@ -250,7 +252,7 @@ Do **not** run HONEY `7F067F58` and KISSY `7F067FBC` in one frame (doc `101`).
 
 | | Tester sentence |
 |--|-----------------|
-| **F-FAIL (tonight)** | “I look left/up, press aim (Q / right-click / L-trigger / R), and the gun or camera **snaps back to the middle**.” |
+| **F-FAIL (tonight)** | “I look left/up, press aim, and the gun or camera **snaps back to the middle**.” Log **which** aim control (#73: mouse vs controller). |
 | **F-PASS** | “I look left/up, press aim, and I am still looking **there**. I can aim properly.” |
 | **M-FAIL** | “Only the **mouse** yanks. Pad C-look + aim is fine.” (mouse→stick / KISSY) |
 | **P-FAIL** | “Pad and mouse both yank.” (stock ADS / ADSSIGHT leftover) |
@@ -272,7 +274,7 @@ Run Arm 0, then A-sight, then A-vr, then A-auto, then Look Ahead OFF, **before**
 | **Green workshop C** | After bat arms still FAIL: do not set `insightaimmode` on flat AIM. Share the #35 “no CONT_R” rule. Zoom/sight as a separate latch if scopes need it. |
 | **Bat A/B only** | Run §2. Enough to pick the pin. Not a close of #73 until F-PASS. |
 | **Reject** | Leave stock Honey ADS. Flat keeps N64 “sight at screen centre.” Owner brief loses. |
-| **New GitHub issue?** | **No.** Use [#73](https://github.com/no6969el/GEVR/issues/73). Cross-link #35 and this RESULT. |
+| **New GitHub issue?** | **No.** Tracker is [#73](https://github.com/no6969el/GEVR/issues/73). Cross-link #35 and this RESULT from that issue if a comment is wanted — do not open #74 for the same yank. |
 
 ---
 
