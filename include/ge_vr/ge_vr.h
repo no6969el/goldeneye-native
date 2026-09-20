@@ -165,6 +165,9 @@ int geVrHandIsTracked(GeVrHand hand);
  * This is what src/game/gunfire.c must use instead of the camera ray. Everything
  * downstream of the ray (penetration, bondwalkItemGetObjectsShootThrough,
  * damage application) is unchanged. See architecture doc §6.2.
+ *
+ * GETV_VR_GUNREBASE=1 applies the same recenter yaw+XZ as the head, then
+ * head-relative XZ (keep Y). Unset / 0 = raw stage (default OFF).
  */
 void geVrGetAimRay(GeVrHand hand, float out_origin[3], float out_dir[3]);
 
@@ -180,6 +183,9 @@ void geVrGetWeaponDisplacement(GeVrHand hand, float *out_dtheta, float *out_dver
  * Full model transform for drawing the weapon at the controller, in world space.
  * Replaces the view-relative first-person weapon transform. Row-vector layout,
  * same as the game's Mtx.
+ *
+ * GETV_VR_GUNREBASE=1: same rebase as geVrGetAimRay (one yaw number). Left-cube
+ * / off-hand grip uses this too. Unset / 0 = raw grip (default OFF).
  */
 int geVrGetWeaponModelMatrixF(GeVrHand hand, float mf[4][4]);
 

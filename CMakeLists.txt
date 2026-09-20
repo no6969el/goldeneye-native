@@ -108,6 +108,13 @@ if(GE_VR_BUILD_TESTS)
     target_include_directories(ge_vr_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     add_test(NAME ge_vr_tests COMMAND ge_vr_tests)
 
+    add_executable(ge_vr_gunrebase_tests tests/test_gunrebase.cpp)
+    target_link_libraries(ge_vr_gunrebase_tests PRIVATE ge_vr)
+    target_include_directories(ge_vr_gunrebase_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    add_test(NAME ge_vr_gunrebase_off COMMAND ge_vr_gunrebase_tests)
+    add_test(NAME ge_vr_gunrebase_on COMMAND ge_vr_gunrebase_tests)
+    set_tests_properties(ge_vr_gunrebase_on PROPERTIES ENVIRONMENT "GETV_VR_GUNREBASE=1")
+
     add_executable(ge_gbi_tests tests/test_gbi.cpp)
     target_link_libraries(ge_gbi_tests PRIVATE ge_gbi)
     add_test(NAME ge_gbi_tests COMMAND ge_gbi_tests)
