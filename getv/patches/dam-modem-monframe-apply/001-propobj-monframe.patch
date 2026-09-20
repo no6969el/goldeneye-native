@@ -1,0 +1,70 @@
+--- a/src/game/propobj.c
++++ b/src/game/propobj.c
+@@ -50,6 +50,11 @@
+ #include "tex.h"
+ #include "textrelated.h"
+ #include "vtxstore.h"
++#ifdef GE_PORT_NATIVE
++#include <stdlib.h>
++/* Workshop stereo sim-owner (GETV_VR_ONESHOT / first eye). */
++extern int gePortSimShouldTick(void);
++#endif
+ 
+ 
+ #if defined(VERSION_JP) || defined(VERSION_EU)
+@@ -6765,6 +6770,33 @@
+ }
+ 
+ 
++
++#ifdef GE_PORT_NATIVE
++/* GETV_VR_MONFRAME — #70 residual Dam covert-modem monitor flicker.
++ * unset / empty / 0 = retail (tick during each eye draw).
++ * 1 = advance MonitorRecord once per sim frame; second eye reuses UVs.
++ * Not KEEP-ON. Do not flip TEXINVAL / TEXDLRETAG / VFXTMEM / VFXSHIFT.
++ */
++static int ge_vr_monframe(void)
++{
++    static int on = -1;
++    if (on < 0) {
++        const char *e = getenv("GETV_VR_MONFRAME");
++        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* chair A/B; not KEEP-ON */
++        if (on) {
++            osSyncPrintf("[getv][monframe] GETV_VR_MONFRAME=1\n");
++        }
++    }
++    return on;
++}
++
++static int ge_vr_monframe_should_tick(void)
++{
++    /* Same gate as GETV_VR_ONESHOT: sim-owner / first eye only. */
++    return gePortSimShouldTick();
++}
++#endif
++
+ Gfx *process_monitor_animation_microcode(Model *model, ModelNode *node, MonitorRecord *screen, Gfx *gdl, s32 arg4, s32 arg5)
+ {
+     if (node && (node->Opcode & 0xff) == MODELNODE_OPCODE_DLCOLLISION) 
+@@ -6775,6 +6807,11 @@
+         union ModelRwData *rwdata = modelGetNodeRwData(model, node);
+         sImageTableEntry *tconfig;
+         bool yielding = FALSE;
++#ifdef GE_PORT_NATIVE
++        /* MONFRAME=1: skip cmdlist + timer mutate on the second eye. Still draw. */
++        if (!ge_vr_monframe() || ge_vr_monframe_should_tick())
++        {
++#endif
+ 
+         while (!yielding) 
+         {
+@@ -7008,6 +7045,9 @@
+                 screen->alpha = screen->alphanew;
+             }
+         }
++#ifdef GE_PORT_NATIVE
++        }
++#endif
+ 
+         // Set up everything for rendering
+         rwdata->DisplayListCollisions.gdl = gdl;

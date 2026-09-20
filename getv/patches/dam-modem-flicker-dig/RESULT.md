@@ -1,6 +1,7 @@
 # RESULT — Dam convert-modem texture flicker (#70) (DIG ONLY)
 
-**Status:** DIG. **Not APPLY READY.** No C landed.
+**Status:** DIG. Chair Run 0 PARTIAL PASS → **5.3b APPLY LANDED** as a SimRig patch (default OFF). Public tree still has no workshop `propobj.c` body.
+**APPLY:** `getv/patches/dam-modem-monframe-apply/` (`001-propobj-monframe.patch`). C-default stays OFF. Do not flip TEXINVAL.
 **Ask:** After Bond attaches the covert modem on Dam 007, looking toward that modem makes its texture flicker — even from downstairs under the towers (view-direction / frustum, not standing next to the prop).
 **Constraints:** Do not merge into #55. Not Dam crate pop (#29). KEEP-ON explosion/tex knobs stay ON unless chair proves otherwise. New chair knob (if any) defaults **OFF**.
 **Date:** 2026-09-20.
@@ -20,7 +21,7 @@ Director can green-light APPLY, reject, or send the chair A/B from this page alo
 | TEXINVAL / VFX KEEP the cause? | **Unproven.** Those knobs **are already ON** in public vr442-class boot / C-default. They are documented as **explosion / fire**, not monitors. Chair A/B them to `0` — do **not** flip C-default OFF (purple explosions). |
 | Per-eye / stereo? | **Strongest source-proven.** `GETV_STEREO_REBUILD` KEEP ON. `MonitorRecord` is not per-eye; `process_monitor_animation_microcode` ticks scroll during each eye’s draw. |
 | Overlay / objective HUD? | **Falsified.** After attach, AI only sets bit `0x00010000` and plays SFX. No `tv_change_screen_bank` on tag 5. The “screen” is the monitor mesh. |
-| APPLY tonight? | **No.** Chair first. Smallest C (if chair confirms stereo tick) is **not** a KEEP flip. |
+| APPLY tonight? | **5.3b landed as a patch.** Director applies `dam-modem-monframe-apply` on SimRig `vendor/ge-decomp/src/game/propobj.c`. Default OFF. |
 
 ```
 Dam 007 spawn  → ITEM_BUG in inv (renamed “covert modem”)
@@ -277,7 +278,8 @@ Headset / OpenXR / SteamVR on or off / HMD vs monitor — write them on the sit.
 | **Green 5.3a if TEXINVAL=0 PASS without purple** | Scoped skip, KEEP TEXINVAL ON. |
 | **Merge into #55** | Rejected by this dig unless Run 0 PASS. Keep issues split anyway. |
 | **Flip TEXINVAL C-default OFF** | Rejected. |
-| **APPLY tonight from this repo** | No. Public tree has getenv stubs only. |
+| **APPLY tonight from this repo** | Patch only. Land `getv/patches/dam-modem-monframe-apply/001-propobj-monframe.patch` on SimRig. |
+| **Green 5.3b (this APPLY)** | Workshop `GETV_VR_MONFRAME` default OFF. Chair: `set GETV_VR_MONFRAME=1` after boot. |
 
 ---
 
@@ -287,3 +289,21 @@ Headset / OpenXR / SteamVR on or off / HMD vs monitor — write them on the sit.
 - No GoldenEye ROM, assets, or dumps.
 - Decomp citations are public `n64decomp/007` (setup + `propobj.c` / `gun.c` / `gunfire.c` / `chrprop.c` / `othermodemicrocode.c` `texSelect`).
 - Workshop C stays private until release policy flips.
+
+---
+
+## 9. APPLY LANDED sketch (5.3b — default OFF)
+
+Public tree has no workshop `propobj.c`. Director lands:
+
+`getv/patches/dam-modem-monframe-apply/001-propobj-monframe.patch`
+
+on SimRig `F:\Projects\GEVR\GoldenEyeVR\goldeneye-native\vendor\ge-decomp\src\game\propobj.c`.
+
+```
+GETV_VR_MONFRAME  unset / empty / 0 = OFF   (retail per-eye tick)
+                  1 = tick once per sim frame (gePortSimShouldTick / first eye)
+Banner once: [getv][monframe] GETV_VR_MONFRAME=1
+```
+
+Chair after boot: `set GETV_VR_MONFRAME=1`. Dam 007, place modem, stare from under the towers. Note throw flash. Do **not** flip TEXINVAL. Do **not** merge #55.
