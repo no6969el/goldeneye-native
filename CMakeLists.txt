@@ -50,6 +50,7 @@ add_library(ge_vr STATIC
     src/xr_session.cpp
     src/xr_input.cpp
     src/ge_vr_bridge.cpp
+    src/ge_vr_opt.c
 )
 
 target_include_directories(ge_vr
@@ -114,6 +115,13 @@ if(GE_VR_BUILD_TESTS)
     add_test(NAME ge_vr_gunrebase_off COMMAND ge_vr_gunrebase_tests)
     add_test(NAME ge_vr_gunrebase_on COMMAND ge_vr_gunrebase_tests)
     set_tests_properties(ge_vr_gunrebase_on PROPERTIES ENVIRONMENT "GETV_VR_GUNREBASE=1")
+
+    add_executable(ge_vr_opt_panel_tests tests/test_opt_panel.cpp)
+    target_link_libraries(ge_vr_opt_panel_tests PRIVATE ge_vr)
+    target_include_directories(ge_vr_opt_panel_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    add_test(NAME ge_vr_opt_panel_off COMMAND ge_vr_opt_panel_tests)
+    add_test(NAME ge_vr_opt_panel_on COMMAND ge_vr_opt_panel_tests)
+    set_tests_properties(ge_vr_opt_panel_on PROPERTIES ENVIRONMENT "GETV_VR_OPT_PANEL=1")
 
     add_executable(ge_gbi_tests tests/test_gbi.cpp)
     target_link_libraries(ge_gbi_tests PRIVATE ge_gbi)
