@@ -1,26 +1,34 @@
 /*
  * Hand-apply into the workshop cinema / hub draw TU (same site as
- * getenv("GETV_XR_PLAY_SCREEN")). Public tree has no cinema C.
+ * getenv("GETV_XR_PLAY_SCREEN") / gevr_xr hub quad layer).
+ * Public tree has no cinema / gevr_xr C — do not push those bodies.
+ *
+ * Chair FAIL (workshop already Tick, no glass):
+ *   hub gate treated PLAY_SCREEN=2 as "not cinema" (ship boot is =2).
+ * Use ApplyHubGate. Do not call SetHubActive(play_screen == 1).
  *
  * First grep:
  *   GETV_XR_PLAY_SCREEN / AUTOSCREEN / FOVSCALE_CINEMA
  *   gePortSimShouldTick / GETV_VR_ONESHOT
+ *   gevr_xr hub / XrCompositionLayerQuad / PLAY_SCREEN blit
  *
  * GETV_VR_OPT_PANEL unset/empty/0 = OFF.
- * =1 → empty world-locked quad to the wearer's RIGHT of the cinema.
+ * =1 → world-locked dark glass to the wearer's RIGHT of the cinema.
  *
  * Do not parent to HMD / watch / GETV_VR_HUB.
- * Do not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE.
- * Ship rows come from geVrOptEnsureShipRows (Tick / Evaluate).
+ * Do not touch bondview2 / HEAD_TRANSLATE / PLAYSPACE / GUNREBASE.
  * Face A is the #32 trap — confirm is trigger / poke only.
  */
 
 #ifdef GE_PORT_NATIVE
 #include "ge_vr/ge_vr_opt.h"
 
-/* cinema_or_hub_this_frame: AUTOSCREEN cinema / frontend / intro / file-select.
- * 0 once gameplay stereo eyes exist (same gate as cinema → VR). */
-static void ge_vr_opt_panel_hub_frame(int cinema_or_hub_this_frame,
+/* frontend_or_intro: title / intro / file-select / AUTOSCREEN cinema up.
+ * play_screen: GETV_XR_PLAY_SCREEN (2 = ship world-lock). Pass 2, not (x==1).
+ * gameplay_stereo_eyes: 1 once a mission eye pair exists (same cinema→VR gate). */
+static void ge_vr_opt_panel_hub_frame(int frontend_or_intro,
+                                      int play_screen,
+                                      int gameplay_stereo_eyes,
                                       int first_eye,
                                       const float cinema_center[3],
                                       const float cinema_right[3],
@@ -29,9 +37,14 @@ static void ge_vr_opt_panel_hub_frame(int cinema_or_hub_this_frame,
                                       float cinema_width,
                                       float cinema_height)
 {
-    GeVrOptPanelQuad q;
+    GeVrOptPanelGlassLayer glass;
+    GeVrOptPanelQuad drop;
+    GeVrOptLaser laser;
+    int hand;
 
-    geVrOptPanelSetHubActive(cinema_or_hub_this_frame);
+    /* SCREEN=2 counts. Do not write: SetHubActive(play_screen == 1). */
+    geVrOptPanelApplyHubGate(frontend_or_intro, play_screen,
+                             gameplay_stereo_eyes);
     if (!geVrOptPanelVisible())
         return;
 
@@ -43,28 +56,27 @@ static void ge_vr_opt_panel_hub_frame(int cinema_or_hub_this_frame,
         geVrOptPanelTick(0);
     }
 
-    if (!geVrOptPanelGetQuad(&q))
+    if (!geVrOptPanelGetGlassLayer(&glass))
         return;
 
     /*
-     * Chrome (look/feel — not a Hand/6DoF/Haptic dump):
-     *   dark translucent glass + glowing border (geVrOptPanelGetChrome)
+     * Workshop blit — reuse the gevr_xr hub / PLAY_SCREEN=2 quad layer:
+     *   same world space as the cinema billboard (not HMD / view-locked)
+     *   XrCompositionLayerQuad (or the live hub-quad helper) from glass.quad
+     *   dark translucent fill = glass.chrome.glass_rgba
+     *   glow hover outline = glass.chrome.glow_rgb when Hovered()
      *   header "VR SETTINGS" + close (geVrOptPanelCloseHot)
-     *   later rows: LEFT name+value, RIGHT chevron; hover = glow outline
-     *   enum dropdown: GetDropdownQuad — RIGHT of main, never overlaps
-     * Rows (EnsureShipRows): TURN SPEED / TURN STYLE / HEIGHT.
-     *   LEFT name+value, RIGHT chevron; hover = glow outline
-     *   TURN STYLE dropdown: GetDropdownQuad — RIGHT of main, never overlaps
-     * Laser: for each hand, GetLaser → draw origin→hit while panel is up.
-     * Select = trigger. Face A is the #32 trap. TOUCHUSE = fallback only.
+     *   rows: LEFT name+value, RIGHT chevron (GetRowRect)
+     *   enum dropdown: GetDropdownQuad — sibling RIGHT, never overlaps
+     * Laser: GetLaser origin→hit while the panel is up. Trigger commit.
      */
     {
-        GeVrOptChrome chrome;
-        GeVrOptLaser laser;
-        int hand;
-        geVrOptPanelGetChrome(&chrome);
-        (void)chrome;
-        (void)q;
+        /* submit world-locked quad: glass.quad + glass.chrome.glass_rgba */
+        (void)glass;
+        if (geVrOptPanelGetDropdownQuad(&drop)) {
+            /* smaller sibling quad to the RIGHT of the main glass */
+            (void)drop;
+        }
         for (hand = 0; hand < GE_VR_HAND_COUNT; ++hand) {
             if (geVrOptPanelGetLaser((GeVrHand)hand, &laser)) {
                 /* glowing beam laser.origin → laser.hit */

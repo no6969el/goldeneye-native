@@ -157,11 +157,34 @@ int geVrOptNudge(int index, int dir);
 int geVrOptPanelEnabled(void);
 
 /*
- * Workshop cinema / AUTOSCREEN path: 1 while frontend / intro / file-select
- * cinema is up. 0 in a mission (same gate as cinema → gameplay VR).
+ * Workshop cinema / AUTOSCREEN path.
+ *
+ * cinema_or_hub:
+ *   0 = mission / gameplay stereo eyes (panel gone)
+ *   1 = frontend / intro / file-select
+ *   2 = GETV_XR_PLAY_SCREEN=2 ship world-lock cinema — hub ON (do not drop 2)
+ *   other nonzero = hub (legacy)
+ *
+ * Chair bug: a caller that only treats SCREEN==1 (or ignores 2) hides the
+ * glass on vr442 boot (KEEP PLAY_SCREEN=2). Prefer ApplyHubGate.
  */
 void geVrOptPanelSetHubActive(int cinema_or_hub);
 int  geVrOptPanelHubActive(void);
+
+/* Ship KEEP when unset. 2 = world-lock cinema. */
+int geVrOptPanelPlayScreenEnv(void);
+
+/*
+ * 1 for intro / frontend / file-select / cinema, including PLAY_SCREEN=2.
+ * 0 once gameplay stereo eyes exist (same gate as cinema → VR).
+ * play_screen==2 is cinema even if the frontend flag was dropped.
+ */
+int geVrOptPanelHubShouldBeActive(int frontend_or_intro, int play_screen,
+                                  int gameplay_stereo_eyes);
+
+/* play_screen < 0 → PlayScreenEnv (default 2). Then SetHubActive. */
+void geVrOptPanelApplyHubGate(int frontend_or_intro, int play_screen,
+                              int gameplay_stereo_eyes);
 
 /* Enabled AND hub active AND not dismissed. Gone in a mission even if ON. */
 int geVrOptPanelVisible(void);
@@ -218,6 +241,20 @@ typedef struct GeVrOptChrome {
 } GeVrOptChrome;
 
 void geVrOptPanelGetChrome(GeVrOptChrome *out);
+
+/*
+ * World-locked dark glass for the workshop gevr_xr hub / quad-layer blit
+ * (same present family as PLAY_SCREEN=2 — not a head-locked HUD).
+ * 1 if the panel is visible this frame.
+ */
+typedef struct GeVrOptPanelGlassLayer {
+    GeVrOptPanelQuad quad;
+    GeVrOptChrome chrome;
+    int world_locked; /* always 1 */
+    int visible;
+} GeVrOptPanelGlassLayer;
+
+int geVrOptPanelGetGlassLayer(GeVrOptPanelGlassLayer *out);
 
 /* Enum dropdown: smaller sibling to the RIGHT of the main glass. Never overlaps. */
 int geVrOptPanelDropdownOpen(void);

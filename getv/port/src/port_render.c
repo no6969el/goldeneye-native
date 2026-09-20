@@ -139,8 +139,10 @@ static int ge_vr_gunrebase(void)
 /* GEVR #76. Unset / empty / 0 = OFF (ship). Chair-only until PASS.
  * Do not KEEP-ON. Do not add to gevr-*-boot.cmd. Live panel + caches are
  * include/ge_vr/ge_vr_opt.h (geVrTurnScaleGet/Set, geVrFloorMGet/Set).
- * Workshop: same getenv next to PLAY_SCREEN draw / port_input.c yaw.
- * Does not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE. */
+ * Workshop: ApplyHubGate(frontend, PLAY_SCREEN, gameplay_eyes) next to
+ * the cinema blit — SCREEN=2 is hub, not "not cinema". Then GetGlassLayer
+ * on the gevr_xr hub / quad layer (RIGHT of the billboard).
+ * Does not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE / bondview2. */
 static int ge_vr_opt_panel(void)
 {
     static int on = -1;

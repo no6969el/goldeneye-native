@@ -6,7 +6,8 @@
  *   TURN STYLE  → smooth vs snap on GETV_XR_TURN (no second yaw)
  *   HEIGHT      → GETV_XR_FLOOR_M cache (default -0.200)
  * Pose is cinema-hub world, wearer-right of PLAY_SCREEN=2. Never head-locked.
- * Does not read or write HEAD_TRANSLATE / PLAYSPACE / GUNREBASE.
+ * Hub gate: intro/frontend/cinema including SCREEN=2; off when gameplay eyes.
+ * Does not read or write HEAD_TRANSLATE / PLAYSPACE / GUNREBASE / bondview2.
  * Does not flip FLOOR_INJECT or mint GETV_XR_SNAP / GE_VR_SNAP_TURN.
  */
 
@@ -527,7 +528,10 @@ int geVrOptPanelEnabled(void)
 
 void geVrOptPanelSetHubActive(int cinema_or_hub)
 {
-    int on = cinema_or_hub ? 1 : 0;
+    int on;
+    /* 0 = mission. 1 = frontend/intro. 2 = PLAY_SCREEN=2 cinema. Both 1 and 2
+     * are hub — do not treat 2 as "not cinema". */
+    on = cinema_or_hub ? 1 : 0;
     if (!on) G.dismissed = 0;
     G.hub_active = on;
 }
@@ -535,6 +539,38 @@ void geVrOptPanelSetHubActive(int cinema_or_hub)
 int geVrOptPanelHubActive(void)
 {
     return G.hub_active;
+}
+
+int geVrOptPanelPlayScreenEnv(void)
+{
+    const char *e = getenv("GETV_XR_PLAY_SCREEN");
+    if (e == NULL || e[0] == '\0')
+        return 2; /* ship KEEP world-lock cinema */
+    return atoi(e);
+}
+
+int geVrOptPanelHubShouldBeActive(int frontend_or_intro, int play_screen,
+                                  int gameplay_stereo_eyes)
+{
+    if (gameplay_stereo_eyes)
+        return 0;
+    if (frontend_or_intro)
+        return 1;
+    /* Ship cinema is PLAY_SCREEN=2. Chair intro with AUTOSCREEN often has
+     * no separate frontend flag — do not treat 2 as "not hub". */
+    if (play_screen == 2)
+        return 1;
+    return 0;
+}
+
+void geVrOptPanelApplyHubGate(int frontend_or_intro, int play_screen,
+                              int gameplay_stereo_eyes)
+{
+    int screen = play_screen;
+    if (screen < 0)
+        screen = geVrOptPanelPlayScreenEnv();
+    geVrOptPanelSetHubActive(geVrOptPanelHubShouldBeActive(
+        frontend_or_intro, screen, gameplay_stereo_eyes));
 }
 
 int geVrOptPanelVisible(void)
@@ -671,6 +707,20 @@ void geVrOptPanelGetChrome(GeVrOptChrome *out)
     out->pill_text_rgb[0] = GE_VR_OPT_CHROME_PILL_TEXT_R;
     out->pill_text_rgb[1] = GE_VR_OPT_CHROME_PILL_TEXT_G;
     out->pill_text_rgb[2] = GE_VR_OPT_CHROME_PILL_TEXT_B;
+}
+
+int geVrOptPanelGetGlassLayer(GeVrOptPanelGlassLayer *out)
+{
+    if (out == NULL) return 0;
+    memset(out, 0, sizeof(*out));
+    out->world_locked = 1;
+    geVrOptPanelGetChrome(&out->chrome);
+    if (!geVrOptPanelGetQuad(&out->quad)) {
+        out->visible = 0;
+        return 0;
+    }
+    out->visible = 1;
+    return 1;
 }
 
 int geVrOptPanelDropdownOpen(void)

@@ -1,8 +1,8 @@
-# APPLY — VR options panel rows (GEVR #76 Phase 3–4)
+# APPLY — VR options panel rows (GEVR #76 Phase 3–4) + intro glass gate
 
 **Tracker:** [GEVR #76](https://github.com/no6969el/GEVR/issues/76) — canonical. DIG: [PR #37](https://github.com/no6969el/goldeneye-native/pull/37) `getv/patches/vr-options-panel-dig/RESULT.md`. Shell: [PR #38](https://github.com/no6969el/goldeneye-native/pull/38) (not rewritten).
-**Status:** Phase 3–4 APPLY on the public host ABI. **`GETV_VR_OPT_PANEL` default OFF.** Not KEEP-ON. Chair-only until PASS.
-**Ask:** Cinema-hub **RIGHT** glass (Phase 2) plus the three Owner-wanted rows, persist sidecar, and ADD-OPTION. Laser + trigger. No second yaw. No #74 touch.
+**Status:** Phase 3–4 APPLY on the public host ABI + **SCREEN=2 hub gate** + glass-layer descriptor. **`GETV_VR_OPT_PANEL` default OFF.** Not KEEP-ON. Chair-only until PASS. Cinema blit is still workshop-owed — see `RESULT.md`.
+**Ask:** Cinema-hub **RIGHT** glass plus the three Owner-wanted rows. Chair must see the glass on intro (`PLAY_SCREEN=2`). Laser + trigger. No second yaw. No #74 touch.
 
 ```
 GETV_VR_OPT_PANEL    unset / empty / 0 = OFF
@@ -63,12 +63,12 @@ Playable cinema is the workshop TU next to `getenv("GETV_XR_PLAY_SCREEN")`. Afte
 
 1. First grep: `GETV_XR_PLAY_SCREEN`, `GETV_XR_PLAY_AUTOSCREEN`, `GETV_VR_OPT_PANEL`, `getenv("GETV_XR_TURN_SCALE")`, `getenv("GETV_XR_TURN")`, `getenv("GETV_XR_FLOOR_M")`, `gePortSimShouldTick`.
 2. Same TU as the cinema billboard. **Do not** parent to HMD / watch / `GETV_VR_HUB`.
-3. `geVrOptPanelSetHubActive(1)` on frontend / intro / file-select; **`0` when gameplay stereo eyes exist**.
-4. `geVrOptPanelSetCinemaFrame` from the live `PLAY_SCREEN=2` quad, then `geVrOptPanelTick(first_eye)` and `geVrOptPanelGetQuad` + draw rows (name+value LEFT / chevron RIGHT; hover glow).
+3. `geVrOptPanelApplyHubGate(frontend_or_intro, play_screen, gameplay_stereo_eyes)` — **`PLAY_SCREEN=2` is cinema / hub**. Do **not** call `SetHubActive(play_screen == 1)` (that hides the chair glass). **`gameplay_stereo_eyes=1`** when gameplay stereo eyes exist.
+4. `geVrOptPanelSetCinemaFrame` from the live `PLAY_SCREEN=2` quad, then `geVrOptPanelTick(first_eye)` and `geVrOptPanelGetGlassLayer` + blit a **world-locked** dark glass quad in the same gevr_xr hub / `XrCompositionLayerQuad` family as the cinema. Rows: name+value LEFT / chevron RIGHT; hover glow.
 5. Tick per sim / first eye only. Draw `GetLaser` beams (origin → hit) while hub is up. Trigger commit. Face **A** is the trap. TOUCHUSE poke is fallback only.
 6. In `port_input.c`, replace the `TURN_SCALE` static latch with `geVrTurnScaleGet()`. Apply snap vs smooth via `geVrTurnModeGet()` on the **same** `GETV_XR_TURN` yaw (no second integrator). Floor reader: `geVrFloorMGet()`.
 
-Snippet: `opt_panel_cinema.snippet.c`. Do **not** push workshop cinema bodies.
+Snippet: `opt_panel_cinema.snippet.c`. Chair FAIL notes: `RESULT.md`. Do **not** push workshop cinema / `gevr_xr` bodies.
 
 ---
 
@@ -94,7 +94,10 @@ After PLAY0 / KEEP have exported (scratch line, **not** the ship allowlist):
 
 ```bat
 set GETV_VR_OPT_PANEL=1
+set GETV_XR_BODY_TRANSLATE=1
 ```
+
+BODY_TRANSLATE is **chair stack only**. Grep the live workshop name. Do **not** bake `OPT_PANEL` or BODY_TRANSLATE into ship boot.
 
 Optional persist check: `call gevr-player-prefs.cmd` **after** boot `TURN_SCALE=60`.
 
@@ -128,7 +131,8 @@ Console once: `[getv][optpanel] GETV_VR_OPT_PANEL=1 hub`. Unset hides the panel.
 | `APPLY.md` | This page |
 | `SUGGESTED-ROWS.md` | Live getenv map (now the three ship rows) |
 | `ADD-OPTION.md` | Phase 4 — how to register row #N |
-| `opt_panel_cinema.snippet.c` | Hand-apply next to `PLAY_SCREEN` draw |
+| `RESULT.md` | Chair-invisible glass: SCREEN=2 gate + workshop-owed blit |
+| `opt_panel_cinema.snippet.c` | Hand-apply next to `PLAY_SCREEN` / gevr_xr hub quad |
 | `port_input_turn.snippet.c` | Replace workshop `TURN_SCALE` latch |
 | `gevr-player-prefs.cmd.snippet` | Sidecar `call`ed after boot `=60` |
-| `chair-opt-panel.cmd.snippet` | Scratch `OPT_PANEL=1` |
+| `chair-opt-panel.cmd.snippet` | Scratch `OPT_PANEL=1` + BODY_TRANSLATE |
