@@ -1,0 +1,25 @@
+@echo off
+rem CHAIR ONLY — GEVR #55 Facility end mine-throw black flicker.
+rem DIG: getv/patches/facility-mines-flicker-dig/RESULT.md
+rem
+rem NOT a ship boot. Do NOT copy these lines into gevr-*-boot.cmd.
+rem Dam boot / C-default stay GETV_STEREO_MTXGUARD unset/0.
+rem Bunker bats already keep =2; this is the Facility stare of the same knob.
+rem
+rem How:
+rem   1. Start-GEVR.bat (vr442 Latest). Boot already pins GETV_XR_HEAD_TRANSLATE=0.
+rem   2. Close the game.
+rem   3. Run this snippet in the same console BEFORE launching again,
+rem      or paste the two set lines after the boot.cmd has finished.
+rem   4. Facility, very end, throw remote mines at the bottling tanks.
+rem   5. Before ANY Dam run: set GETV_STEREO_MTXGUARD=
+rem
+rem Optional skip-to-Facility (chair; forbidden in public boot):
+rem   set GETV_STAGE=34
+rem
+rem Do not set GETV_VR_MONFRAME=1 (REJECTED on Dam; wrong family here).
+rem Do not set GETV_XR_HEAD_TRANSLATE=1 for this sit.
+rem Do not set GETV_STEREO_MTXGUARD=2 globally in the zip.
+
+set GETV_STEREO_MTXGUARD=2
+rem Expect console once: [getv][mtxguard] ... MODE 2
