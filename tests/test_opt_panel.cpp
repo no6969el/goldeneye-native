@@ -1,7 +1,8 @@
-// test_opt_panel.cpp — GEVR #76 Phase 2: empty hub panel + option registry.
+// test_opt_panel.cpp — GEVR #76 Phase 3–4: hub panel + ship rows.
 //
 // GETV_VR_OPT_PANEL unset/0 = OFF (this process unless ctest sets =1).
-// No TURN_SCALE row is registered. Pose is cinema-right, not head-locked.
+// Ship rows: TURN SPEED (TURN_SCALE), TURN STYLE (GETV_XR_TURN path), HEIGHT (FLOOR_M).
+// Pose is cinema-right, not head-locked. Laser + trigger. No #74 knobs.
 
 #include <cmath>
 #include <cstdio>
@@ -61,10 +62,86 @@ static void dirToward(const float from[3], const float to[3], float out[3]) {
     }
 }
 
+static int findRow(const char* id) {
+    for (int i = 0; i < geVrOptCount(); ++i) {
+        const char* s = geVrOptId(i);
+        if (s && std::strcmp(s, id) == 0) return i;
+    }
+    return -1;
+}
+
+static void uvToWorld(const GeVrOptPanelQuad& q, float u, float v, float out[3]) {
+    out[0] = q.center[0] + q.right[0] * (u - 0.5f) * q.width +
+             q.up[0] * (v - 0.5f) * q.height;
+    out[1] = q.center[1] + q.right[1] * (u - 0.5f) * q.width +
+             q.up[1] * (v - 0.5f) * q.height;
+    out[2] = q.center[2] + q.right[2] * (u - 0.5f) * q.width +
+             q.up[2] * (v - 0.5f) * q.height;
+}
+
 static void testRegistry() {
-    std::printf("[registry shell — slider / toggle / enum]\n");
+    std::printf("[ship rows + registry shell]\n");
     geVrOptReset();
-    check(geVrOptCount() == 0, "Phase 2 starts with zero rows");
+    check(geVrOptCount() == GE_VR_OPT_SHIP_ROWS, "Reset registers 3 ship rows");
+    check(findRow(GE_VR_OPT_ID_TURN_SCALE) == 0, "row 0 is turn_scale");
+    check(findRow(GE_VR_OPT_ID_TURN_MODE) == 1, "row 1 is turn_mode");
+    check(findRow(GE_VR_OPT_ID_FLOOR_M) == 2, "row 2 is floor_m");
+    check(std::strcmp(geVrOptLabel(0), "TURN SPEED") == 0, "label TURN SPEED");
+    check(std::strcmp(geVrOptLabel(1), "TURN STYLE") == 0, "label TURN STYLE");
+    check(std::strcmp(geVrOptLabel(2), "HEIGHT") == 0, "label HEIGHT");
+    check(geVrTurnScaleGet() == GE_VR_TURN_SCALE_DEFAULT, "TURN_SCALE default 60");
+    check(geVrTurnArmed() == 1, "GETV_XR_TURN stays armed");
+    check(geVrTurnModeGet() == GE_VR_TURN_MODE_SMOOTH, "default SMOOTH");
+    checkNear(geVrFloorMGet(), GE_VR_FLOOR_M_DEFAULT, 1e-3f, "FLOOR_M default -0.200");
+
+    check(geVrOptNudge(0, +1) == 1, "turn speed +");
+    check(geVrTurnScaleGet() == 70, "cache 60+10");
+    check(geVrOptNudge(0, -1) == 1, "turn speed -");
+    check(geVrTurnScaleGet() == 60, "cache back to 60");
+    geVrTurnScaleSet(GE_VR_TURN_SCALE_MIN);
+    check(geVrOptNudge(0, -1) == 0, "turn speed clamp at min");
+    check(geVrTurnScaleGet() == GE_VR_TURN_SCALE_MIN, "stays at min");
+
+    /* U-04: setter wins after first getenv latch. */
+    geVrTurnScaleSet(45);
+    check(geVrTurnScaleGet() == 45, "setter unlatches cache");
+    geVrTurnScaleSet(90);
+    check(geVrTurnScaleGet() == 90, "second set still lands");
+
+    check(geVrOptNudge(1, +1) == 1, "turn style → SNAP");
+    check(geVrTurnModeGet() == GE_VR_TURN_MODE_SNAP, "mode SNAP on TURN path");
+    check(geVrTurnArmed() == 1, "SNAP does not flip GETV_XR_TURN to 0");
+    check(geVrOptNudge(1, +1) == 1, "turn style wrap");
+    check(geVrTurnModeGet() == GE_VR_TURN_MODE_SMOOTH, "mode SMOOTH again");
+
+    float floor0 = geVrFloorMGet();
+    check(geVrOptNudge(2, +1) == 1, "height +");
+    check(geVrFloorMGet() > floor0 + 1e-4f, "FLOOR_M rose");
+    check(geVrOptNudge(2, -1) == 1, "height -");
+    checkNear(geVrFloorMGet(), floor0, 1e-3f, "FLOOR_M back");
+
+    bool saw_invented = false;
+    bool saw_74 = false;
+    for (int i = 0; i < geVrOptCount(); ++i) {
+        const char* id = geVrOptId(i);
+        if (!id) continue;
+        if (std::strcmp(id, "GETV_XR_SNAP") == 0 ||
+            std::strcmp(id, "GE_VR_SNAP_TURN") == 0 ||
+            std::strcmp(id, "GETV_XR_TURNSNAP") == 0 ||
+            std::strcmp(id, "GETV_XR_TURNSPEED") == 0 ||
+            std::strcmp(id, "GETV_XR_HEIGHT") == 0) {
+            saw_invented = true;
+        }
+        if (std::strstr(id, "HEAD_TRANSLATE") || std::strstr(id, "PLAYSPACE") ||
+            std::strstr(id, "GUNREBASE") || std::strstr(id, "FLOOR_INJECT")) {
+            saw_74 = true;
+        }
+    }
+    check(!saw_invented, "no invented snap/height getenv ids");
+    check(!saw_74, "no #74 / FLOOR_INJECT rows");
+
+    geVrOptClear();
+    check(geVrOptCount() == 0, "clear empties registry");
     check(geVrOptId(0) == nullptr, "empty id is null");
     check(geVrOptRegister(nullptr) == -1, "reject null desc");
 
@@ -128,18 +205,16 @@ static void testRegistry() {
     check(geVrOptNudge(2, +1) == 1, "enum wrap around");
     check(g_enum == 0, "enum smooth again");
 
-    bool saw_turn = false;
+    bool saw_ship_in_demos = false;
     for (int i = 0; i < geVrOptCount(); ++i) {
         const char* id = geVrOptId(i);
-        if (id && (std::strcmp(id, "turn_scale") == 0 ||
-                   std::strcmp(id, "GETV_XR_TURN_SCALE") == 0)) {
-            saw_turn = true;
-        }
+        if (id && std::strcmp(id, GE_VR_OPT_ID_TURN_SCALE) == 0)
+            saw_ship_in_demos = true;
     }
-    check(!saw_turn, "no TURN_SCALE row in Phase 2");
+    check(!saw_ship_in_demos, "demo rows are not the ship TURN_SCALE row");
 
     geVrOptClear();
-    check(geVrOptCount() == 0, "clear empties registry");
+    check(geVrOptCount() == 0, "clear empties demo registry");
 }
 
 static void testWorldLockRight() {
@@ -193,7 +268,7 @@ static void testRayVsCinema() {
     check(geVrOptPanelRayHit(eye, at_panel, &t, uv) == 1, "aim at panel hits");
     check(uv[0] > 0.2f && uv[0] < 0.8f, "hit near panel center U");
     check(uv[1] > 0.2f && uv[1] < 0.8f, "hit near panel center V");
-    check(geVrOptPanelRowAtUv(uv) == -1, "empty registry: no row under uv");
+    check(geVrOptPanelRowAtUv(uv) >= 0, "ship rows: center hits a row");
 
     const float title_uv[2] = {0.5f, 0.95f};
     check(geVrOptPanelRowAtUv(title_uv) == -1, "header band is not a row");
@@ -237,13 +312,13 @@ static void testHubGateAndEvaluate() {
     ptrs[GE_VR_HAND_RIGHT].origin[1] = eye[1];
     ptrs[GE_VR_HAND_RIGHT].origin[2] = eye[2];
     dirToward(eye, pose.center, ptrs[GE_VR_HAND_RIGHT].dir);
-    ptrs[GE_VR_HAND_RIGHT].trigger = 0.9f;
+    ptrs[GE_VR_HAND_RIGHT].trigger = 0.0f;
 
     const int ev = geVrOptPanelEvaluate(1, ptrs);
     if (on) {
         check(ev == 1, "evaluate runs in hub when ON");
         check(geVrOptPanelHovered() == 1, "panel hovered by aim-ray");
-        check(geVrOptPanelHoverIndex() == -1, "empty shell: hover is not a row");
+        check(geVrOptPanelHoverIndex() >= 0, "ship row hover under aim-ray");
         check(geVrOptPanelEvaluate(0, ptrs) == 1, "second eye keeps state");
         check(geVrOptPanelHovered() == 1, "no per-eye chatter");
     } else {
@@ -252,11 +327,7 @@ static void testHubGateAndEvaluate() {
     }
 
     /* Face A must not be the confirm — Evaluate has no button field. */
-    ptrs[GE_VR_HAND_RIGHT].trigger = 0.0f;
-    geVrOptPanelEvaluate(1, ptrs);
-    ptrs[GE_VR_HAND_RIGHT].trigger = 0.9f;
-    geVrOptPanelEvaluate(1, ptrs); /* rising edge on empty panel */
-    check(geVrOptCount() == 0, "trigger on empty panel registers nothing");
+    check(geVrOptCount() == GE_VR_OPT_SHIP_ROWS, "trigger path does not add extra rows");
 
     if (on) {
         GeVrOptLaser laser{};
@@ -280,15 +351,6 @@ static void testChromeAndDropdown() {
     checkNear(ch.text_rgb[0], 1.0f, 1e-4f, "bright white text");
     check(ch.pill_text_rgb[0] < 0.2f, "dark text on white pill");
 
-    GeVrOptDesc en = {};
-    en.id = "demo_enum";
-    en.label = "Demo enum";
-    en.kind = GE_VR_OPT_ENUM;
-    en.enum_labels = kEnumLabels;
-    en.enum_count = 2;
-    en.get_i = get_enum;
-    en.set_i = set_enum;
-    check(geVrOptRegister(&en) == 0, "test-only enum (not a ship row)");
     check(geVrOptPanelGetRowRect(0, nullptr) == 0, "row rect needs out");
     GeVrOptRowRect rr{};
     check(geVrOptPanelGetRowRect(0, &rr) == 1, "tall row rect");
@@ -296,8 +358,8 @@ static void testChromeAndDropdown() {
     check(rr.uv1[0] - rr.uv0[0] > 0.9f, "full-width row");
 
     check(geVrOptPanelDropdownOpen() == 0, "dropdown starts closed");
-    geVrOptPanelOpenDropdown(0);
-    check(geVrOptPanelDropdownOpen() == 1, "enum opens dropdown");
+    geVrOptPanelOpenDropdown(findRow(GE_VR_OPT_ID_TURN_MODE));
+    check(geVrOptPanelDropdownOpen() == 1, "TURN STYLE opens dropdown");
 
     GeVrOptPanelQuad mainq{}, dropq{};
     geVrOptPanelComputeQuad(&mainq);
@@ -319,11 +381,75 @@ static void testChromeAndDropdown() {
         }
     }
     check(!saw_demo_dump, "no Hand/6DoF/Haptic demo dump");
-    geVrOptClear();
     geVrOptPanelCloseDropdown();
 }
 
+static void testPersistSidecar() {
+    std::printf("[TURN_SCALE persist sidecar]\n");
+    geVrOptReset();
+    const char* path = "/tmp/gevr-opt-prefs-cfa7.cmd";
+    std::remove(path);
+    setenv("GETV_VR_OPT_PREFS", path, 1);
+    geVrTurnScaleSet(40);
+    geVrFloorMSet(-0.150f);
+
+    FILE* f = std::fopen(path, "r");
+    check(f != nullptr, "sidecar written");
+    char buf[1024] = {};
+    if (f) {
+        const size_t n = std::fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        std::fclose(f);
+    }
+    check(std::strstr(buf, "GETV_XR_TURN_SCALE=40") != nullptr,
+          "sidecar has TURN_SCALE=40");
+    check(std::strstr(buf, "GETV_XR_FLOOR_M=") != nullptr, "sidecar has FLOOR_M");
+    check(std::strstr(buf, "GETV_XR_TURN=1") != nullptr, "sidecar keeps TURN armed");
+    check(std::strstr(buf, "GETV_XR_SNAP") == nullptr, "sidecar has no GETV_XR_SNAP");
+    check(std::strstr(buf, "HEAD_TRANSLATE") == nullptr, "sidecar has no HT");
+    std::remove(path);
+}
+
+static void testTriggerTurnSpeed() {
+    std::printf("[laser + trigger nudges TURN_SCALE]\n");
+    if (!panelOn()) {
+        std::printf("  skip: GETV_VR_OPT_PANEL off\n");
+        return;
+    }
+    geVrOptReset();
+    geVrOptPanelResetCinemaFrame();
+    geVrOptPanelSetHubActive(1);
+    geVrTurnScaleSet(60);
+
+    GeVrOptPanelQuad q{};
+    geVrOptPanelComputeQuad(&q);
+    GeVrOptRowRect rr{};
+    check(geVrOptPanelGetRowRect(0, &rr) == 1, "turn speed row rect");
+    const float u = 0.80f; /* right half = + */
+    const float v = (rr.uv0[1] + rr.uv1[1]) * 0.5f;
+    float target[3];
+    uvToWorld(q, u, v, target);
+    const float eye[3] = {0.0f, GE_VR_OPT_CINEMA_CENTER_Y, 0.0f};
+    GeVrOptPointer ptrs[GE_VR_HAND_COUNT]{};
+    ptrs[GE_VR_HAND_RIGHT].tracked = 1;
+    ptrs[GE_VR_HAND_RIGHT].origin[0] = eye[0];
+    ptrs[GE_VR_HAND_RIGHT].origin[1] = eye[1];
+    ptrs[GE_VR_HAND_RIGHT].origin[2] = eye[2];
+    dirToward(eye, target, ptrs[GE_VR_HAND_RIGHT].dir);
+    ptrs[GE_VR_HAND_RIGHT].trigger = 0.0f;
+    geVrOptPanelEvaluate(1, ptrs);
+    check(geVrOptPanelHoverIndex() == 0, "laser hovers TURN SPEED");
+    GeVrOptLaser laser{};
+    check(geVrOptPanelGetLaser(GE_VR_HAND_RIGHT, &laser) == 1, "laser visible");
+    check(laser.on_panel == 1, "laser on glass");
+
+    ptrs[GE_VR_HAND_RIGHT].trigger = 0.9f;
+    geVrOptPanelEvaluate(1, ptrs);
+    check(geVrTurnScaleGet() == 70, "trigger + raises TURN_SCALE this process");
+}
+
 int main() {
+    setenv("GETV_VR_OPT_PREFS", "/tmp/gevr-opt-prefs-cfa7.cmd", 1);
     std::printf("[GETV_VR_OPT_PANEL %s]\n", panelOn() ? "ON" : "OFF (default)");
 
     testRegistry();
@@ -331,6 +457,8 @@ int main() {
     testRayVsCinema();
     testHubGateAndEvaluate();
     testChromeAndDropdown();
+    testPersistSidecar();
+    testTriggerTurnSpeed();
 
     if (g_failures) {
         std::printf("\n%d FAILURE(S)\n", g_failures);

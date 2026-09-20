@@ -1,9 +1,13 @@
 /*
- * ge_vr_opt.c — option registry + world-locked hub panel (GEVR #76 Phase 2).
+ * ge_vr_opt.c — option registry + world-locked hub panel (GEVR #76 Phase 3–4).
  *
- * Empty panel + row types (slider / toggle / enum). No TURN_SCALE row.
+ * Phase 2 chrome / host / laser+trigger unchanged. Ship rows:
+ *   TURN SPEED  → GETV_XR_TURN_SCALE cache (default 60)
+ *   TURN STYLE  → smooth vs snap on GETV_XR_TURN (no second yaw)
+ *   HEIGHT      → GETV_XR_FLOOR_M cache (default -0.200)
  * Pose is cinema-hub world, wearer-right of PLAY_SCREEN=2. Never head-locked.
  * Does not read or write HEAD_TRANSLATE / PLAYSPACE / GUNREBASE.
+ * Does not flip FLOOR_INJECT or mint GETV_XR_SNAP / GE_VR_SNAP_TURN.
  */
 
 #include "ge_vr/ge_vr_opt.h"
@@ -51,6 +55,255 @@ typedef struct GeVrOptState {
 } GeVrOptState;
 
 static GeVrOptState G = {.hover = -1, .dropdown_row = -1};
+
+typedef struct GeVrPrefCache {
+    int scale_latched;
+    int scale;
+    const char *scale_src;
+    int scale_logged;
+    int armed_latched;
+    int armed;
+    int mode_latched;
+    int mode;
+    int floor_latched;
+    float floor;
+    const char *floor_src;
+    int floor_logged;
+} GeVrPrefCache;
+
+static GeVrPrefCache P;
+
+static void ge_opt_clamp_scale(int *v)
+{
+    if (v == NULL) return;
+    if (*v < GE_VR_TURN_SCALE_MIN) *v = GE_VR_TURN_SCALE_MIN;
+    if (*v > GE_VR_TURN_SCALE_MAX) *v = GE_VR_TURN_SCALE_MAX;
+}
+
+static void ge_opt_clamp_floor(float *v)
+{
+    float steps;
+    if (v == NULL) return;
+    if (*v < GE_VR_FLOOR_M_MIN) *v = GE_VR_FLOOR_M_MIN;
+    if (*v > GE_VR_FLOOR_M_MAX) *v = GE_VR_FLOOR_M_MAX;
+    steps = (*v - GE_VR_FLOOR_M_MIN) / GE_VR_FLOOR_M_STEP;
+    *v = GE_VR_FLOOR_M_MIN + (float)((int)(steps + (steps >= 0.0f ? 0.5f : -0.5f))) *
+         GE_VR_FLOOR_M_STEP;
+    if (*v < GE_VR_FLOOR_M_MIN) *v = GE_VR_FLOOR_M_MIN;
+    if (*v > GE_VR_FLOOR_M_MAX) *v = GE_VR_FLOOR_M_MAX;
+}
+
+static void ge_opt_persist(void)
+{
+    const char *path;
+    FILE *f;
+    int scale;
+    float floor;
+
+    path = getenv("GETV_VR_OPT_PREFS");
+    if (path == NULL || path[0] == '\0')
+        path = GE_VR_OPT_PREFS_NAME;
+
+    scale = geVrTurnScaleGet();
+    floor = geVrFloorMGet();
+
+    f = fopen(path, "w");
+    if (f == NULL) return;
+    fprintf(f, "rem GEVR player prefs (#76). call AFTER boot GETV_XR_TURN_SCALE=60.\n");
+    fprintf(f, "set GETV_XR_TURN_SCALE=%d\n", scale);
+    fprintf(f, "set GETV_XR_FLOOR_M=%.3f\n", (double)floor);
+    fprintf(f, "set GETV_XR_TURN=1\n");
+    fprintf(f, "rem snap/smooth is geVrTurnMode on the GETV_XR_TURN path (not GETV_XR_SNAP).\n");
+    fclose(f);
+}
+
+int geVrTurnScaleGet(void)
+{
+    if (!P.scale_latched) {
+        const char *e = getenv("GETV_XR_TURN_SCALE");
+        if (e != NULL && e[0] != '\0') {
+            P.scale = atoi(e);
+            P.scale_src = "boot";
+        } else {
+            P.scale = GE_VR_TURN_SCALE_DEFAULT;
+            P.scale_src = "default";
+        }
+        ge_opt_clamp_scale(&P.scale);
+        P.scale_latched = 1;
+    }
+    if (!P.scale_logged) {
+        printf("[getv][xrin] TURN_SCALE=%d (%s)\n", P.scale,
+               P.scale_src ? P.scale_src : "default");
+        P.scale_logged = 1;
+    }
+    return P.scale;
+}
+
+void geVrTurnScaleSet(int v)
+{
+    ge_opt_clamp_scale(&v);
+    P.scale = v;
+    P.scale_src = "prefs";
+    P.scale_latched = 1;
+    if (!P.scale_logged) {
+        printf("[getv][xrin] TURN_SCALE=%d (prefs)\n", P.scale);
+        P.scale_logged = 1;
+    }
+    ge_opt_persist();
+}
+
+int geVrTurnArmed(void)
+{
+    if (!P.armed_latched) {
+        const char *e = getenv("GETV_XR_TURN");
+        P.armed = (e != NULL && e[0] != '\0') ? (atoi(e) != 0) : 1;
+        P.armed_latched = 1;
+    }
+    return P.armed ? 1 : 0;
+}
+
+int geVrTurnModeGet(void)
+{
+    if (!P.mode_latched) {
+        P.mode = GE_VR_TURN_MODE_SMOOTH;
+        P.mode_latched = 1;
+    }
+    return (P.mode == GE_VR_TURN_MODE_SNAP) ? GE_VR_TURN_MODE_SNAP
+                                            : GE_VR_TURN_MODE_SMOOTH;
+}
+
+void geVrTurnModeSet(int mode)
+{
+    P.mode = (mode == GE_VR_TURN_MODE_SNAP) ? GE_VR_TURN_MODE_SNAP
+                                            : GE_VR_TURN_MODE_SMOOTH;
+    P.mode_latched = 1;
+    /* Does not flip GETV_XR_TURN to 0 and does not mint GETV_XR_SNAP. */
+}
+
+float geVrFloorMGet(void)
+{
+    if (!P.floor_latched) {
+        const char *e = getenv("GETV_XR_FLOOR_M");
+        if (e != NULL && e[0] != '\0') {
+            P.floor = (float)atof(e);
+            P.floor_src = "boot";
+        } else {
+            P.floor = GE_VR_FLOOR_M_DEFAULT;
+            P.floor_src = "default";
+        }
+        ge_opt_clamp_floor(&P.floor);
+        P.floor_latched = 1;
+    }
+    if (!P.floor_logged) {
+        printf("[getv][xrin] FLOOR_M=%.3f (%s)\n", (double)P.floor,
+               P.floor_src ? P.floor_src : "default");
+        P.floor_logged = 1;
+    }
+    return P.floor;
+}
+
+void geVrFloorMSet(float metres)
+{
+    ge_opt_clamp_floor(&metres);
+    P.floor = metres;
+    P.floor_src = "prefs";
+    P.floor_latched = 1;
+    if (!P.floor_logged) {
+        printf("[getv][xrin] FLOOR_M=%.3f (prefs)\n", (double)P.floor);
+        P.floor_logged = 1;
+    }
+    ge_opt_persist();
+}
+
+static float ship_scale_get(void *ctx)
+{
+    (void)ctx;
+    return (float)geVrTurnScaleGet();
+}
+
+static void ship_scale_set(void *ctx, float v)
+{
+    (void)ctx;
+    geVrTurnScaleSet((int)(v + (v >= 0.0f ? 0.5f : -0.5f)));
+}
+
+static int ship_mode_get(void *ctx)
+{
+    (void)ctx;
+    return geVrTurnModeGet();
+}
+
+static void ship_mode_set(void *ctx, int v)
+{
+    (void)ctx;
+    geVrTurnModeSet(v);
+}
+
+static float ship_floor_get(void *ctx)
+{
+    (void)ctx;
+    return geVrFloorMGet();
+}
+
+static void ship_floor_set(void *ctx, float v)
+{
+    (void)ctx;
+    geVrFloorMSet(v);
+}
+
+static int ge_opt_has_id(const char *id)
+{
+    int i;
+    if (id == NULL) return 0;
+    for (i = 0; i < G.n; ++i) {
+        if (strcmp(G.rows[i].id, id) == 0) return 1;
+    }
+    return 0;
+}
+
+void geVrOptEnsureShipRows(void)
+{
+    static const char *k_turn_style[] = { "SMOOTH", "SNAP" };
+    GeVrOptDesc d;
+
+    if (!ge_opt_has_id(GE_VR_OPT_ID_TURN_SCALE)) {
+        memset(&d, 0, sizeof(d));
+        d.id = GE_VR_OPT_ID_TURN_SCALE;
+        d.label = "TURN SPEED";
+        d.kind = GE_VR_OPT_SLIDER;
+        d.slider_min = (float)GE_VR_TURN_SCALE_MIN;
+        d.slider_max = (float)GE_VR_TURN_SCALE_MAX;
+        d.slider_step = (float)GE_VR_TURN_SCALE_STEP;
+        d.get_f = ship_scale_get;
+        d.set_f = ship_scale_set;
+        geVrOptRegister(&d);
+    }
+
+    if (!ge_opt_has_id(GE_VR_OPT_ID_TURN_MODE)) {
+        memset(&d, 0, sizeof(d));
+        d.id = GE_VR_OPT_ID_TURN_MODE;
+        d.label = "TURN STYLE";
+        d.kind = GE_VR_OPT_ENUM;
+        d.enum_labels = k_turn_style;
+        d.enum_count = 2;
+        d.get_i = ship_mode_get;
+        d.set_i = ship_mode_set;
+        geVrOptRegister(&d);
+    }
+
+    if (!ge_opt_has_id(GE_VR_OPT_ID_FLOOR_M)) {
+        memset(&d, 0, sizeof(d));
+        d.id = GE_VR_OPT_ID_FLOOR_M;
+        d.label = "HEIGHT";
+        d.kind = GE_VR_OPT_SLIDER;
+        d.slider_min = GE_VR_FLOOR_M_MIN;
+        d.slider_max = GE_VR_FLOOR_M_MAX;
+        d.slider_step = GE_VR_FLOOR_M_STEP;
+        d.get_f = ship_floor_get;
+        d.set_f = ship_floor_set;
+        geVrOptRegister(&d);
+    }
+}
 
 static int ge_opt_ray_quad(const GeVrOptPanelQuad *q, const float origin[3],
                            const float dir[3], float *t_out, float uv[2]);
@@ -548,6 +801,7 @@ int geVrOptPanelEvaluate(int first_eye, const GeVrOptPointer pointers[GE_VR_HAND
         memset(G.last_ptr, 0, sizeof(G.last_ptr));
         return 0;
     }
+    geVrOptEnsureShipRows();
     if (!first_eye) return 1;
 
     hit = 0;
@@ -705,7 +959,9 @@ void geVrOptPanelDismiss(void)
 void geVrOptReset(void)
 {
     memset(&G, 0, sizeof(G));
+    memset(&P, 0, sizeof(P));
     G.hover = -1;
     G.dropdown_row = -1;
     ge_opt_default_cinema();
+    geVrOptEnsureShipRows();
 }

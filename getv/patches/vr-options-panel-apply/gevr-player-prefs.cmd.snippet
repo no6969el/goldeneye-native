@@ -1,0 +1,14 @@
+rem Player sidecar (GEVR #76). NOT the ship allowlist.
+rem
+rem Boot still does:  set GETV_XR_TURN_SCALE=60
+rem Then, AFTER that line (scratch env still wins if already set):
+rem
+rem   if exist gevr-player-prefs.cmd call gevr-player-prefs.cmd
+rem
+rem Do not merge this call into gevr-*-boot.cmd / $requiredBootKnobs until PASS.
+rem Menu Set writes this file (or GETV_VR_OPT_PREFS=path).
+
+rem Example after a chair sit (values come from the menu):
+set GETV_XR_TURN_SCALE=60
+set GETV_XR_FLOOR_M=-0.200
+set GETV_XR_TURN=1
