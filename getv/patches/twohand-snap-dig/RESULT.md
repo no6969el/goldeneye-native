@@ -1,10 +1,12 @@
-# RESULT — two-hand support-grip snap (DIG ONLY)
+# RESULT — left cube hide-on-near + two-hand support snap (DIG ONLY)
 
-**Status:** DIG. **Not APPLY READY.** No C landed.
-**Ask:** BarZ — when the LEFT empty hand (HANDCUBES left cube) gets near the RIGHT-hand gun, SNAP the left pose to a front support-grip so it reads as two-handed hold. Not merely hide the cube on intersect.
-**Date:** 2026-09-20. Evidence from public `goldeneye-native` HEAD, public `no6969el/GEVR` textbook/packaging (vr441 boot), and public `n64decomp/007` `gun.h`. Workshop C bodies (`geStereoXr*`, HANDCUBES draw) are **not on any public remote** (`GEVR` `docs/RELEASE-POLICY.md`). Function names in the brief are treated as the workshop symbols to patch.
+**Status:** DIG. **Not APPLY READY on this public tree.** No C landed.
+**Ask (folded, one dig):** when the LEFT HANDCUBE is within grip/near of the RIGHT gun mount, **HIDE** it (skip draw). When farther, show it as now (`MASK=1` left). **SNAP** to a front support-grip is the **next layer on the same proximity** (hysteresis): near → hide cube **and/or** snap left pose so it reads two-handed.
+**Constraints:** `GETV_VR_GUNARM=1` stays. Bond cuff / HANDMESH boxes / GHOSTHAND stay rejected or parked. Dual-wield: no snap (hide cube).
+**Date:** 2026-09-20 (follow-up: hide-on-near folded in; draw site named `geVrHandCubesRender`).
+**Evidence:** public `goldeneye-native` HEAD, public `no6969el/GEVR` textbook/packaging (vr441 boot), public `n64decomp/007` `gun.h`. Workshop C (`geVrHandCubesRender`, `geStereoXr*`, `geTouchBoxDist`) is **not on any public remote** (`GEVR` `docs/RELEASE-POLICY.md`). Brief names are the workshop symbols.
 
-Director can green-light or reject from this page alone.
+Director can green-light hide, snap, both, or neither from this page alone.
 
 ---
 
@@ -12,53 +14,62 @@ Director can green-light or reject from this page alone.
 
 | Question | Answer |
 |----------|--------|
-| Wear-only? | **No.** No existing env snaps a pose. `HANDCUBES` / `MASK` only draw / pick a hand. `GUNARM=0` is rejected as the fix. |
-| Smallest change? | New knob **`GETV_VR_TWOHAND` default OFF** + ~40–80 lines in the HANDCUBES draw path. |
-| Snap what? | **Approach A (recommend):** HANDCUBE **draw pose only**. Leave left aim / melee / touch / reticle on the real controller. |
-| Dual-wield? | Snap **must not run** if left also holds a gun. Hide the cube (next-cut already wants that). |
-| GUNARM? | **`GETV_VR_GUNARM=1` stays.** Do not propose retail Bond sleeve. |
-| Rejected crutches | Bond cuff / suit hand. HANDMESH jointed boxes. GHOSTHAND (parked). |
-| APPLY tonight? | **No.** Workshop TU is private; this is not a one-liner. |
+| One feature or two digs? | **One stack.** Shared near-gun latch. Layer 1 = hide. Layer 2 = snap. |
+| Wear-only? | **No** for either layer. No env skips the left cube near the gun, and none snaps a pose. |
+| Layer 1 hide | Skip left cube draw in **`geVrHandCubesRender`** when left empty, right has gun, and near mount. Smallest C. No new KEEP knob. |
+| Layer 2 snap | **`GETV_VR_TWOHAND` default OFF.** Same latch. Draw left cube at front-support (and/or snap pose). |
+| Snap what first? | **A — draw pose only.** Leave left aim / melee / touch / reticle on the real controller. |
+| Dual-wield? | **Hide** left cube. **Do not snap.** |
+| GUNARM? | **`GETV_VR_GUNARM=1` stays.** |
+| APPLY tonight? | **No from this repo.** Hide is small **on the workshop**. Snap is not a one-liner. Bodies are private. |
+
+```
+far  → draw left cube at geStereoXrHandWorld / HandBasis   (MASK=1, tonight)
+near → TWOHAND=0: skip draw                                 (hide-on-near)
+       TWOHAND=1: draw at gunMount × Fwd                    (snap; replaces hide)
+left has a gun → skip draw, never snap
+```
 
 ---
 
 ## 1. Root finding (files + functions)
 
-### 1.1 Evidence boundary (read this first)
+### 1.1 Evidence boundary
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
-| Public `goldeneye-native` | this repo | Host-agnostic VR ABI (`ge_vr.h` / `ge_vr_bridge.cpp` / `xr_input.h`). **Not** the playable GETV tree. README: playable workshop is **not published here**. |
-| Public `no6969el/GEVR` | docs + `packaging/` | Ship knobs, boot values, chair refusals, dual-wield cube-hide as **next cut**, PD two-hand numbers. **No** `geStereoXrHandWorld` body. |
-| Workshop (private) | `F:\Projects\GEVR\GoldenEyeVR\goldeneye-native` (`vendor/ge-decomp` + `getv`) | Live `geStereoXr*` helpers, HANDCUBES draw, TOUCHUSE / HANDMELEE. **Do not push.** |
-| Public decomp | `n64decomp/007` `src/game/gun.h` | Per-hand inventory: `getCurrentPlayerWeaponId`, `Gun_hand_without_item`, `gunUpdateAndFireBothHands`. |
+| Public `goldeneye-native` | this repo | Host-agnostic VR ABI (`ge_vr.h` / `ge_vr_bridge.cpp` / `xr_input.h`). **Not** the playable GETV tree. |
+| Public `no6969el/GEVR` | docs + `packaging/` | Ship knobs, boot values, chair refusals, dual-wield cube-hide as **next cut**, PD two-hand numbers. |
+| Workshop (private) | `F:\Projects\GEVR\GoldenEyeVR\goldeneye-native` | `geVrHandCubesRender`, `geStereoXr*`, TOUCHUSE / HANDMELEE. **Do not push.** |
+| Public decomp | `n64decomp/007` `src/game/gun.h` | `getCurrentPlayerWeaponId`, `Gun_hand_without_item`, `gunUpdateAndFireBothHands`. |
 
-`geStereoXrHandWorld` / `HandBasis` / `geStereoXrGunMount` / `geTouchBoxDist` **do not appear in any public file**. GEVR docs place every other `geStereo*` helper in workshop `vendor/ge-decomp/src/game/stereo.c`. Treat that TU as the first grep on the chair tree.
+`geVrHandCubesRender` / `geStereoXrHandWorld` / `HandBasis` / `geStereoXrGunMount` / `geTouchBoxDist` **do not appear in any public file**. First chair grep: `geVrHandCubesRender` and `getenv("GETV_VR_HANDCUBES")`. GEVR docs put other `geStereo*` helpers in workshop `vendor/ge-decomp/src/game/stereo.c`.
 
 ### 1.2 Left-hand world pose
 
-**Workshop (brief + stereo family):**
+**Workshop:**
 
+- `geVrHandCubesRender` — **the draw site.** MASK, mm size, per-hand skip, and the new near test all land here (or in a helper it calls).
 - `geStereoXrHandWorld` — left controller world translation (game units).
-- `HandBasis` — left orientation basis from the same XR sample.
-- Index trap already paid for in PD (`GEVR` `docs/102-WHAT-PERFECT-DARK-ALREADY-SOLVED.md` §4): game `HANDRIGHT=0`, `HANDLEFT=1`; OpenXR `0=left`. `ctrlIndex = 1 - handnum`. A left/right swap here makes the cube snap to the wrong gun.
+- `HandBasis` — left orientation from the same XR sample.
+- Index trap (`GEVR` `docs/102` §4): game `HANDRIGHT=0`, `HANDLEFT=1`; OpenXR `0=left`. `ctrlIndex = 1 - handnum`. Wrong index hides/snaps the wrong hand.
 
-**Public ABI (same split, different names) — `include/ge_vr/ge_vr.h`, `src/ge_vr_bridge.cpp`, `src/xr_input.h`:**
+**Public ABI (same split, different names):**
 
-| Helper | Pose used | Job |
-|--------|-----------|-----|
-| `geVrGetAimRay(hand)` | OpenXR **aim** (`/input/aim/pose`) | Hitscan / barrel line |
-| `geVrGetWeaponModelMatrixF(hand)` | OpenXR **grip** (`/input/grip/pose`) | Fist / weapon **draw** |
+| Helper | Pose | Job |
+|--------|------|-----|
+| `geVrGetAimRay(hand)` | OpenXR **aim** | Hitscan / barrel |
+| `geVrGetWeaponModelMatrixF(hand)` | OpenXR **grip** | Fist / weapon **draw** |
 | `geVrGetWeaponDisplacement(hand)` | aim vs head | `weapon_theta/verta_displacement` |
-| `geVrHandIsTracked(hand)` | tracking latch | Fall back; never stale floor-aim |
+| `geVrHandIsTracked(hand)` | latch | Fall back; never stale floor-aim |
 
-`xr_input.h` states the rule in one line: aim = barrel, grip = fist. Two-hand snap wants the **grip / draw** side, not the aim ray.
+`xr_input.h`: aim = barrel, grip = fist. Hide and snap both measure **grip/draw** vs gun mount, not the aim ray.
 
 ### 1.3 Gun mount / grip
 
-**Workshop (brief):** `geStereoXrGunMount` + gunfire mount (the matrix already placing the right-hand gun under `GETV_VR_GUNMOUNT=1`).
+**Workshop:** `geStereoXrGunMount` + gunfire mount under `GETV_VR_GUNMOUNT=1`.
 
-**Public / boot (vr441 KEEP, do not flip):**
+**Public / boot (vr441 KEEP — do not flip):**
 
 | Knob | Ship | Role |
 |------|------|------|
@@ -68,13 +79,9 @@ Director can green-light or reject from this page alone.
 | `GETV_VR_BODY` | `0` | Full body parked |
 | `GETV_VR_BODY_NOARMS` | `1` | No retail / IK arms |
 
-Historical grip math (GEVR textbook, still the right *shape*): offset along the gun’s own frame from the authored origin to the hand (`docs/154` / `docs/82`). PD pistol default `(0, 16, −4)` cm; GE units are not 1:1 with that table. Support-grip is a **second** offset **forward of that grip**, not a copy of the firing-hand trim.
-
-Public hook sketch (not the live GETV site): `patches/DECOMP-PATCHES.md` §4–6 — `gunfire.c` `gunUpdateAndFireBothHands` + `geVrGetWeaponModelMatrixF`.
+Support-grip is a **second** offset **forward of** the firing-hand grip, not a copy of `GUN_OFF_*`. Historical grip shape: GEVR `docs/154` / `docs/82`.
 
 ### 1.4 HANDCUBES as it ships tonight
-
-From `GEVR` `packaging/templates/gevr-vr441-boot.cmd` and `KEEP-DEFAULTS-INVENTORY-vr441.md`:
 
 | Knob | Value | Class | Meaning |
 |------|-------|-------|---------|
@@ -82,106 +89,131 @@ From `GEVR` `packaging/templates/gevr-vr441-boot.cmd` and `KEEP-DEFAULTS-INVENTO
 | `GETV_VR_HANDCUBE_MM` | `60` | PLAYER_PREF | Cube edge ~60 mm |
 | `GETV_VR_HANDCUBE_MASK` | `1` | KEEP_SHIP | **Left only.** Right cube off while right holds the gun. |
 
-Chair refusals already written down (`FEATURES-CURRENT.md`, `ROADMAP.md`, `COMING-SOON.md`):
+Chair refusals (`FEATURES-CURRENT.md`, `ROADMAP.md`, `COMING-SOON.md`): Bond cuff rejected; HANDMESH boxes **LOOK REJECTED**; GHOSTHAND parked; dual-wield cube hide is **next cut** (fold into layer 1 here).
 
-- Bond cuff / suit hand — rejected.
-- HANDMESH jointed boxes — **LOOK REJECTED**.
-- GHOSTHAND / see-through fingers — **parked** (cooking, not this cut).
-- Dual-wield cube hide — **next cut**, not claimed on public vr441.
+Tonight: left cube follows the left controller even when it sits inside the right gun. Any existing intersect skip (if present) is not a named near-gun latch with hysteresis. This dig **names** that latch and uses it for hide, then snap.
 
-Current “hide cube on intersect” is a **draw skip**. BarZ wants a **pose write** so the left cube sits on the forend.
+### 1.5 Shared proximity (one helper, two consumers)
 
-### 1.5 Proximity helpers — reusable, wrong radii
+| Helper | Ship | Reuse? |
+|--------|------|--------|
+| `GETV_VR_TOUCHUSE` + `_R=12` | ON | **Pattern** only. Door-poke radius. |
+| `GETV_VR_HANDMELEE` + `_R=8` + `_COOL=30` | ON | **Pattern** + cooldown idea. Fist radius — too tight. |
+| `geTouchBoxDist` (workshop) | — | **Yes, call it** for left-world vs gun-mount. Own thresholds. |
+| PD `VR_2H_SEP_MIN 9.0` | prior art | Controllers touching still read ~9 apart. Enter **> 9**. |
+| PD two-hand ease | prior art | Guard latch on sim / first eye (`lvframe60`). Fire can run twice per frame. |
 
-| Helper | Ship | What it is | Reuse? |
-|--------|------|------------|--------|
-| `GETV_VR_TOUCHUSE` + `_R=12` | ON | Reach-to-USE (doors / consoles). Closed as product ask `#40`. | **Pattern** (sphere vs world point). Radius is door-poke, not grip. |
-| `GETV_VR_HANDMELEE` + `_R=8` + `_COOL=30` | ON | Punch volume + cooldown. | **Pattern** + latch idea. Radius is a fist, too tight for “near the gun.” |
-| `geTouchBoxDist` (workshop) | — | Box distance used by touch/melee. | **Yes, call it.** Do not share the USE/melee thresholds. |
-| PD `VR_2H_SEP_MIN 9.0` | prior art | Controllers physically touching still read ~9 apart (`102` §3). | **Why hysteresis exists.** Enter must be **larger** than “touching.” |
-| PD two-hand ease | prior art | Guard on `lvframe60` — fire path can run **twice per frame** (`102` §4.3). | Sticky latch, not a per-call lerp that doubles while firing. |
+**One sticky latch** (`nearGun`). Hide and snap must not each run a raw `d < R` or they chatter against each other.
 
-**Recommended first-chair numbers (PLAYER_PREF, not KEEP):**
+First-chair numbers (PLAYER_PREF, not KEEP; not `TOUCHUSE_R` / `HANDMELEE_R`):
 
-- Enter: ~`14`–`18` game units (above melee 8, near/above touch 12, above PD 9).
-- Exit: enter + ~`6`–`8` (sticky; kills chatter).
-- Forward offset: a few gun-frame units ahead of `geStereoXrGunMount` (“front support”), then wear.
-
-Do **not** drive snap from `TOUCHUSE_R` / `HANDMELEE_R`. Those knobs will get retuned for doors and punches and would move two-hand feel by accident.
+- Enter ~`14`–`18` game units
+- Exit = enter + ~`6`–`8`
+- Snap forward offset: small +Z in **gun** frame, then wear
 
 ### 1.6 Dual-wield gate
 
-Public `gun.h`:
-
-- `getCurrentPlayerWeaponId(GUNHAND hand)`
-- `Gun_hand_without_item(GUNHAND hand)` — empty-hand test
-- `gunUpdateAndFireBothHands()` — both hands already first-class
-
-`bondinv.c` still gates dual-wield on `getPlayerCount() == 1` (solo). Next-cut copy already says *“Orange hand cubes hide when you dual-wield.”*
-
-**Rule:** if left is **not** empty (`!Gun_hand_without_item(HANDLEFT)` / left `getCurrentPlayerWeaponId` is a gun), **do not snap** and **do not draw** the left cube. Snap is empty-hand-only.
+- `Gun_hand_without_item(HANDLEFT)` / `getCurrentPlayerWeaponId(HANDLEFT)`
+- If left is **not** empty: **skip left cube**, **do not snap**
+- Do not use `getPlayerCount()` (stereo trap; `bondinv.c` already gates dual-wield on `== 1`)
 
 ---
 
-## 2. Approach A / B
+## 2. How the two layers sit together
 
-### A — snap HANDCUBE draw pose only (**recommend**)
+Not “hide vs snap.” Same `nearGun` bit.
 
-When `GETV_VR_TWOHAND` is on, left is empty, right holds a gun, both tracked, and distance (left world pos → gun mount, with hysteresis) is inside the band:
+| `nearGun` | `GETV_VR_TWOHAND` | Left empty + right gun | Left cube |
+|-----------|-------------------|------------------------|-----------|
+| 0 | 0 or 1 | yes | Draw at hand (`MASK=1`) |
+| 1 | **0** (unset) | yes | **Hide** (skip draw) |
+| 1 | **1** | yes | **Snap** draw to front support (layer 2 replaces hide so a support hand is visible) |
+| * | * | left has a gun | **Hide.** No snap |
 
-1. Build support matrix = `geStereoXrGunMount` (right) × forward offset × support orientation (left-hand-ish, not a mirrored right fist).
-2. Draw the left HANDCUBE with that matrix instead of `geStereoXrHandWorld` / `HandBasis`.
-3. Leave left **aim**, **melee**, **touch-use**, **reticle**, **watch raise** on the real left controller.
+**A — snap draw pose only (recommend for layer 2).** Melee / touch / watch / `#35` left-grip ADS stay on the real left controller.
 
-**Why A first:** BarZ asked for a *read* (“two-handed hold”), not a new input mode. Left empty hand still punches, pokes doors, and raises the watch (`FEATURES.md`: “Hands do Bond things”). `#35` still wants left-grip ADS while walking — that must stay on the real stick.
+**B — also snap left aim/pose feed.** Do not ship first. Punches and door pokes teleport to the barrel.
 
-### B — also snap left aim / pose feed (**do not ship first**)
-
-Same latch, but write the snapped pose back into the left controller sample that melee / touch / `RETICLE_HAND` / hitscan consume.
-
-| | A draw-only | B also snap feed |
-|--|-------------|------------------|
-| Looks like two hands on the gun | Yes, if offset is right | Yes |
-| Left melee / touch / watch | Stay at the real hand | Teleport to the forend |
-| Dual-wield safety | Easy (skip draw) | Can steal left gun aim |
-| Chatter if hysteresis fails | Cube pops | Cube **and** gameplay pop |
-| Chair debug | `TWOHAND=0` restores tonight | Harder to A/B |
-
-**Pick B later only if** A wears as “cube glued to the gun but my real fist is still floating beside it” **and** testers want the fist to *be* the support. That is a second sit, not this patch.
+If A wears as “cube glued on, my real fist still floating,” sit B later. Hide-on-near still runs when `TWOHAND=0`.
 
 ---
 
-## 3. APPLY sketch — **NOT APPLY READY**
+## 3. APPLY sketches — **NOT LANDED**
 
-Wear-only is impossible. Smallest C is still a new getenv + latch + matrix, in the **private workshop**.
+### 3.1 Shared helper (write once)
 
-### Knob
+Workshop: next to `geVrHandCubesRender` (same TU or `stereo.c`).
+
+```c
+/* NOT APPLY READY — workshop sketch.
+ * One latch for hide (layer 1) and snap (layer 2).
+ * Tick on sim-owner / first eye only (lvframe60 trap). */
+
+static int geVrHandNearRightGun(void)
+{
+    static int latched;
+    /* emptyL = Gun_hand_without_item(HANDLEFT);
+     * gunR   = !Gun_hand_without_item(HANDRIGHT);
+     * if (!emptyL || !gunR) { latched = 0; return 0; }
+     * if (!geVrHandIsTracked(LEFT) || !geVrHandIsTracked(RIGHT)) { latched = 0; return 0; }
+     * d = geTouchBoxDist(geStereoXrHandWorld(LEFT), geStereoXrGunMount(RIGHT));
+     * if (!latched && d < enter) latched = 1;
+     * if ( latched && d > exit)  latched = 0;
+     * return latched;
+     */
+    return latched;
+}
+```
+
+Optional wear knobs (only if enter/exit need a sit without rebuild): `GETV_VR_TWOHAND_R` / `_EXIT`. Unset → compiled defaults. **Not** KEEP-ON.
+
+### 3.2 Layer 1 — hide-on-near (smallest)
+
+**File:** workshop `geVrHandCubesRender` (grep `GETV_VR_HANDCUBES` / `HANDCUBE_MASK` / `HANDCUBE_MM`).
+
+**No new KEEP knob.** `HANDCUBES=1` + `MASK=1` already ship. Hide is a skip inside that draw.
+
+```c
+/* AFTER MASK=1 (left only). GUNARM stays 1. Do not write left aim.
+ *
+ * for hand in drawn set:
+ *   if (hand == LEFT && !Gun_hand_without_item(HANDLEFT))
+ *       continue;                     -- dual-wield: hide
+ *   if (hand == LEFT && !ge_vr_twohand() && geVrHandNearRightGun())
+ *       continue;                     -- hide-on-near
+ *   if (hand == LEFT && ge_vr_twohand() && geVrHandNearRightGun())
+ *       draw(supportMtx);             -- layer 2; see 3.3
+ *   else
+ *       draw(geStereoXrHandWorld / HandBasis);   -- tonight
+ */
+```
+
+**Why this is the smallest change:** one `continue` on the left cube when `nearGun && !TWOHAND`. Dual-wield hide is the same `continue` on `!emptyL` (already wanted for the next cut).
+
+**Knob if chair must A/B hide without a rebuild** (optional, still not KEEP):
+
+```
+GETV_VR_HANDCUBE_HIDEGUN   unset / empty = ON    (ship the skip)
+                           explicit 0 = OFF      (dig: always show left cube)
+```
+
+Prefer **no env** unless the sit needs a wipe. Default-ON getenv is a second sit; do not add it to `$requiredBootKnobs` until hide PASSes.
+
+**APPLY READY?** On the **workshop**, hide is a trivial skip once `geVrHandCubesRender` and the shared latch exist. **Not APPLY READY here** — that function is not in public `goldeneye-native`. Do not land a stub.
+
+### 3.3 Layer 2 — snap-to-support (`GETV_VR_TWOHAND` default OFF)
 
 ```
 GETV_VR_TWOHAND        unset / empty / 0 = OFF   (chair A/B; not KEEP-ON)
-GETV_VR_TWOHAND_R      enter radius, default ~16 (only if A needs a wear tune)
-GETV_VR_TWOHAND_EXIT   exit radius, default ~22  (or enter + 6)
-GETV_VR_TWOHAND_FWD    gun-forward offset, default small +Z in gun frame
+GETV_VR_TWOHAND_FWD    gun-forward offset (wear)
+GETV_VR_TWOHAND_TRACE  0   DIG_OFF
 ```
 
-Unset must stay **OFF**. Do **not** add this to `gevr-vr441-boot.cmd` `$requiredBootKnobs` until a sit passes. Chair A/B: one extra `set GETV_VR_TWOHAND=1` in a scratch boot, not a ship allowlist change.
-
-### Files (workshop grep, then patch)
-
-1. **`vendor/ge-decomp/src/game/stereo.c`** (and `.h` if the helpers are exported)  
-   Confirm `geStereoXrHandWorld`, `HandBasis`, `geStereoXrGunMount`. If the names differ by a suffix, **do not invent aliases** — patch the live symbols.
-2. **HANDCUBES draw site** — first `getenv("GETV_VR_HANDCUBES")` / `HANDCUBE_MASK` / `HANDCUBE_MM`. Likely same TU or `getv/port/src` overlay that already skips the right cube when `MASK=1` and hides on intersect. **Replace the hide-on-intersect branch** with: if two-hand latch, draw at support matrix; else existing hide/draw.
-3. **Empty-hand / dual-wield test** — `Gun_hand_without_item(HANDLEFT)` or `getCurrentPlayerWeaponId(HANDLEFT)` next to that draw. Do not use `getPlayerCount()`.
-4. **Optional traces** — `GETV_VR_TWOHAND_TRACE=0` DIG_OFF, same shape as `GUNARM_TRACE` / `TOUCHUSE_TRACE`.
-
-### Latch (sketch, not a patch)
+Do **not** add `TWOHAND` to `gevr-vr441-boot.cmd` allowlist until a sit passes. Scratch boot: `set GETV_VR_TWOHAND=1`.
 
 ```c
-/* NOT APPLY READY — workshop sketch only.
- * getenv TWOHAND default 0. HANDCUBES draw path, after MASK left-only.
- * GUNARM stays 1. Do not write left aim. */
-
-static int ge_vr_twohand(void) {
+static int ge_vr_twohand(void)
+{
     static int on = -1;
     if (on < 0) {
         const char *e = getenv("GETV_VR_TWOHAND");
@@ -190,53 +222,59 @@ static int ge_vr_twohand(void) {
     return on;
 }
 
-/* per-frame, sim-owner / first eye only (lvframe60 trap):
- * emptyL = Gun_hand_without_item(HANDLEFT);
- * gunR   = !Gun_hand_without_item(HANDRIGHT);
- * if (!ge_vr_twohand() || !emptyL || !gunR) { latched = 0; return; }
- * d = geTouchBoxDist(leftWorld, gunMount)  -- or length(left - mount)
- * if (!latched && d < enter) latched = 1;
- * if ( latched && d > exit)  latched = 0;
- * if (latched) drawLeftCube(mount * Fwd(TWOHAND_FWD) * supportBasis);
- * else         existing HANDCUBES / hide-on-intersect
+/* if (ge_vr_twohand() && geVrHandNearRightGun())
+ *     support = geStereoXrGunMount(RIGHT) * Fwd(TWOHAND_FWD) * supportBasis;
+ *     drawLeftCube(support);     -- A: draw only
+ *     -- do NOT write left aim / melee / touch
  */
 ```
 
-**Do not** land this from `goldeneye-native` public. The draw call and `geStereoXr*` bodies are not here.
+Same files as 3.1–3.2. Confirm live `geStereoXr*` names before typing aliases.
 
-### Out of scope (do not sneak in)
+**APPLY READY?** **No.** Offset + basis + dual-wield + hysteresis need a sit.
 
-- `GETV_VR_GUNARM=0` / Bond sleeve.
-- HANDMESH / GHOSTHAND / cuff.
-- KEEP-ON graduation of `TWOHAND`.
-- Boot allowlist / pack smoke until sit PASS.
-- Personal credit paths. ROM dumps.
+### 3.4 Out of scope
+
+- `GETV_VR_GUNARM=0` / Bond sleeve
+- HANDMESH / GHOSTHAND / cuff
+- KEEP-ON graduation of `TWOHAND`
+- Boot allowlist / pack smoke until hide sit PASS (layer 1) and snap sit PASS (layer 2)
+- Personal credit paths. ROM dumps
 
 ---
 
-## 4. Chair stare — PASS / FAIL (plain tester sentences)
+## 4. Chair stare — both layers (plain tester sentences)
 
-**Setup (A/B):** same vr441-class zip. Scratch boot keeps `GETV_VR_GUNARM=1`, `GETV_VR_HANDCUBES=1`, `GETV_VR_HANDCUBE_MASK=1`. Run 1: `GETV_VR_TWOHAND` unset. Run 2: `GETV_VR_TWOHAND=1`. Recenter both sticks. One gun in the **right** hand. Left hand empty. Do not dual-wield on the first sit.
+**Setup:** vr441-class zip. Boot keeps `GETV_VR_GUNARM=1`, `GETV_VR_HANDCUBES=1`, `GETV_VR_HANDCUBE_MASK=1`. Recenter both sticks. **Right hand holds a gun. Left hand empty.** No dual-wield on the first two runs.
 
-**PASS — two-hand on**
+**Run H — hide only:** `GETV_VR_TWOHAND` **unset**.
 
-1. “I put my left controller near the front of the right-hand gun and the orange left cube **jumps onto the gun** and stays there, like a support hand, not a floating box.”
-2. “If I hold that pose, the cube **does not flicker** on and off.”
-3. “If I pull my left hand away, the cube **comes back to my left controller** after a short gap, not instantly chatter.”
-4. “The **gun still floats on the right controller**. I did not grow a Bond sleeve or a boxy finger mesh.”
-5. “I can still **punch and poke a door with my left hand** when I am not supporting the gun. Melee and touch did not move to the barrel.”
-6. “When I **put a gun in my left hand too**, the left cube **does not snap onto the right gun**. It hides or stays a normal left cube, not a glued support.”
+| | Tester sentence |
+|--|-----------------|
+| **H-PASS 1** | “When I bring my left controller **next to the right-hand gun**, the orange left cube **disappears**. The gun is still a floating VR gun, not a Bond sleeve.” |
+| **H-PASS 2** | “When I **pull my left hand away**, the left cube **comes back** on my left controller. It does **not flicker** if I hover at the edge.” |
+| **H-PASS 3** | “Far from the gun, the left cube is **exactly tonight** — left only, about fist-sized.” |
+| **H-PASS 4** | “I can still **punch and poke a door** with my left hand while the cube is hidden. Touch and melee did not die.” |
+| **H-FAIL** | “The cube stays stuck in the gun.” / “It blinks on and off at the edge.” / “It never hides.” / “It hides even when my left hand is across the room.” / “I grew a suit arm.” |
 
-**FAIL — any of these**
+**Run S — snap on:** same boot plus `GETV_VR_TWOHAND=1`.
 
-1. “The left cube just **vanishes** when I get close. It never sits on the gun.” (old hide-on-intersect)
-2. “The cube **buzzes** between my hand and the gun when I hover.” (no hysteresis / enter==exit)
-3. “The cube snapped on but now my **left punch / door poke / watch** happens at the gun, not at my left hand.” (B leaked in)
-4. “Turning `TWOHAND` off does **not** restore tonight’s cubes.” (default / getenv wrong)
-5. “`GUNARM` looks like a **suit arm** again.” (wrong fix)
-6. “Dual-wield: left cube **glued to the right gun** while I am holding two weapons.”
+| | Tester sentence |
+|--|-----------------|
+| **S-PASS 1** | “Near the gun, the left cube **sits on the front of the gun** like a support hand. It does **not** just vanish.” |
+| **S-PASS 2** | “If I hold that pose, it **does not flicker** between my hand, hidden, and the gun.” |
+| **S-PASS 3** | “When I pull away, the cube **returns to my left controller** after a short gap.” |
+| **S-PASS 4** | “Left **punch / door / watch** still happen at my real left hand, not at the barrel.” |
+| **S-FAIL** | “Cube only vanishes — snap did not draw.” / “Buzzes.” / “My left punch is at the gun.” / “Unset `TWOHAND` does not restore hide-only.” |
 
-**Also stare (regression, not the feature):** right-hand aim, squeeze ADS mark on the **gun ray**, touch-use with the **right** hand, casings. Two-hand must not move `GUNAIM` / `GUNMOUNT`.
+**Run D — dual-wield (both H and S):**
+
+| | Tester sentence |
+|--|-----------------|
+| **D-PASS** | “A gun in each hand: **no** left cube glued to the right gun. Left cube **hides** (or I see two guns, no extra box).” |
+| **D-FAIL** | “Left cube snapped onto the right gun while I am holding two weapons.” |
+
+**Regression (every run):** right-hand aim, squeeze ADS on the **gun ray**, right-hand touch-use, casings. Hide/snap must not move `GUNAIM` / `GUNMOUNT`.
 
 ---
 
@@ -244,11 +282,12 @@ static int ge_vr_twohand(void) {
 
 | If you say… | Then… |
 |-------------|--------|
-| **Green A** | Workshop APPLY: `GETV_VR_TWOHAND` default OFF, draw-pose snap + hysteresis + dual-wield skip. Sit with the sentences above. |
-| **Green A + hide** | Same, and ship the already-planned dual-wield cube hide in the same draw site (still not GHOSTHAND). |
-| **Reject — hide is enough** | Stop. Leave intersect hide. No new knob. |
-| **Want B** | Sit A first. Only then snap left feed. Expect melee/touch fallout. |
-| **Want ghost fingers** | Park. Separate cut. Not this snap. |
+| **Green hide only** | Workshop APPLY 3.1 + 3.2. `TWOHAND` stays off. Sit Run H + D. |
+| **Green hide + snap A** | Same, plus 3.3. Sit H, then S, then D. |
+| **Green snap, skip hide** | Rejected by this follow-up. Near with `TWOHAND=0` would leave the cube in the gun. |
+| **Want B** | Sit A first. Then snap left feed. Expect melee/touch fallout. Hide-only run still required. |
+| **Want ghost fingers** | Park. Not this stack. |
+| **Reject both** | Stop. Leave tonight’s always-on left cube. |
 
 ---
 
@@ -256,5 +295,5 @@ static int ge_vr_twohand(void) {
 
 - No personal credit paths edited.
 - No GoldenEye ROM, assets, or dumps.
-- PD two-hand numbers are **map-only** (already in public GEVR textbook). Do not copy PD sources into product.
+- PD two-hand numbers are **map-only** (public GEVR textbook). Do not copy PD sources.
 - Workshop C stays private until release policy flips.
