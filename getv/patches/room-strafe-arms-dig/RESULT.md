@@ -1,7 +1,8 @@
 # RESULT — real-world strafe off playspace center messes up arm/gun position (DIG ONLY)
 
+**Tracker:** [GEVR #74](https://github.com/no6969el/GEVR/issues/74) — **canonical.** Filed 2026-09-20 (`bug`). Related only: [#45](https://github.com/no6969el/GEVR/issues/45) floor family, [#39](https://github.com/no6969el/GEVR/issues/39) GUNEYE. Do not open a second issue. Do not retarget this DIG.
 **Status:** DIG. **Not APPLY READY on this public tree.** No C landed. **No ship.**
-**Ask ([GEVR #74](https://github.com/no6969el/GEVR/issues/74), owner 2026-09-20):** physically strafing in the room away from the recentered playspace spot makes VR **arms / guns feel slightly wrong / off position**. Have to recenter often (both sticks / Home). **Not** stick-strafe only — **HMD / playspace translation** relative to origin.
+**Ask ([#74](https://github.com/no6969el/GEVR/issues/74) as filed):** *“Physically strafing in the room away from the recentered playspace spot makes VR arms/guns feel slightly wrong / off position. Have to recenter often.”* Headset, in-mission, after recenter then walk sideways in **real space** (not only stick strafe). Build **vr442 / Latest**.
 **Wear:** public **vr442 / Latest**. Path: `GETV_VR_GUNARM=1` + grip matrix (`geVrGetWeaponModelMatrixF` / workshop `geStereoXrGunMount`). `BODY=0`, `BODY_NOARMS=1`, left cube `MASK=1`.
 **Constraints:** Recenter chord already ships (`RECENTER_CHORD`). [#45](https://github.com/no6969el/GEVR/issues/45) playspace **floor** is a different ask (height / reset spot). `HEADYAW` / `AUTORECENTER` stay KEEP — do not casually disable. Parked `GUNZ` / `HANDSOLID` (vanish below chest) stay off. Two-hand snap DIG (PR #4) stays parked.
 **Date:** 2026-09-20.
@@ -24,6 +25,7 @@ Director can green-light Rank 1 rebase sit, Rank 1 + YAWONLY A/B, park, or rejec
 | Same as #45 floor? | **No.** #45 is floor / reset-spot comfort (`FLOOR_M=-0.200`, `FLOOR_INJECT=0`, yaw-only recenter). FEATURES “comfort pass” is **look-around shear**, not fist-vs-origin after a sidestep. Related family; keep issues split. |
 | Why recenter “fixes” it | Chord re-snaps the **yaw / standing snapshot** the gun yaw-remap uses. `RECENTER_YAWONLY=1` means that snap may **not** eat XZ — which is why the owner has to do it **often** as they wander. |
 | Wear-only tonight? | **No.** Unset knobs keep the off-hand feel after a room sidestep. |
+| Same as recomp `194`/`196`? | **Same family, inverted on vr442.** Then: view had roomscale, gun did not → gun moved **opposite** you. Now: `HEAD_TRANSLATE=0` so the **eye** stays on the capsule and the **fist** still has stage XZ → gun walks with your feet / skews until chord. |
 | APPLY tonight? | **No from this repo.** Rebase belongs next to `geStereoXrGunMount` / `geVrGetWeaponModelMatrixF` on the workshop. |
 
 ```
@@ -50,7 +52,7 @@ sidestep 0.5–1 m without stick
 | Layer | Where | What it proves |
 |-------|--------|----------------|
 | Public `goldeneye-native` | this repo | Recenter is **head-only**. Grip / aim matrices are **raw**. Eyes located in **stage**. Comfort clamp is **camera-only**. |
-| Public `no6969el/GEVR` | #74 (filed this ask), #45, #39, `FEATURES.md`, `docs/CONTROLS.md`, `docs/86-6DOF-PLAN.md`, `packaging/templates/gevr-vr442-boot.cmd`, `KEEP-DEFAULTS-INVENTORY-vr441.md` | Wear, shipped pins, PD **viewSpace** prior art, comfort-pass copy. |
+| Public `no6969el/GEVR` | **#74 (canonical tracker)**, #45, #39, `FEATURES.md`, `docs/CONTROLS.md`, `docs/86-6DOF-PLAN.md`, `docs/102`, `docs/194`/`196`/`200`, `docs/36`, `packaging/templates/gevr-vr442-boot.cmd`, `KEEP-DEFAULTS-INVENTORY-vr441.md` | Wear, shipped pins, PD **viewSpace**, roomscale-origin history, comfort-pass copy. |
 | Public decomp | `n64decomp/007` `gunfire.c` / `bondview.h` | Stock FP gun is **camspace** + `G_MTX_LOAD`. GUNMOUNT replaces that with a controller pose. |
 | Workshop (private) | `geStereoXrGunMount`, `geStereoXrHandWorld`, `HANDYAW` / `PLAYSPACE` bodies | Live composition. **Do not push.** First chair grep: `getenv("GETV_VR_GUNREBASE")` / `HANDYAW` / `RECENTER_YAWONLY`. |
 
@@ -97,6 +99,10 @@ Same raw stage pose:
 `modelMatrixFromPose` (`src/xr_math.cpp`) is a straight model matrix. No parent, no Bond, no eye.
 
 `geVrRecenter()` stores head yaw + **XZ** (`y` forced 0 — height is calibration / #45 `FLOOR_M`). That is the public chord. Workshop may **narrow** it (`RECENTER_YAWONLY=1`).
+
+`Session::requestRecenter()` only sets `recenter_pending`. **`pumpFrame` never reads that flag.** Public recenter is the **bridge offset**, not a new OpenXR reference space. `docs/36` already called renderer-side yaw recenter vs raw `projViews[].pose` a **layer-pose lie** (per-eye warp / “two of everything”). Translation deltas do not warp the same way. Sit T1 (one eye) on #74: if it is **offset in both eyes**, it is the parent, not `36`.
+
+`geVrGetEyeViewOffsetF` builds `head⁻¹ × eye` from a **recentered** head and a **raw** eye pose, then **adds** clamped lean from the recentered head. After you leave the stored origin, IPD / view-origin is in a mixed frame even when HT is off. That can add a **small** stereo skew on top of the fist-parent error. It is **not** #39 (same matrix both eyes at rest).
 
 ### 1.3 Locate space — stage, not view
 
@@ -163,6 +169,25 @@ Already mapped by the GUNEYE / two-hand / body DIGS:
 | `GETV_VR_GUNZ` / `HANDSOLID` | Parked vanish. Not a parent fix. |
 | Two-hand snap (PR #4) | Near-gun latch. Different stack. |
 | Stick strafe | Game capsule. Owner: **physical** sidestep. |
+
+### 1.7 Same family as `194`/`196` — inverted on this zip
+
+Recomp-era GEVR already named “off centre in VR” as a **head-position** fault (`docs/193` §4). The read (`docs/194`):
+
+| Then (HT on, pre-GUNMOUNT native) | Anchored at |
+|-----------------------------------|-------------|
+| What you **see** | real head + roomscale (`ge_vr_head_transform` in the eye matrix) |
+| Bullet / drawn gun | `gameCamera + (hand − head)` — **no room term** |
+
+Wear (`docs/196`): *“If I go forward, the gun starts to come towards me.”* Relative to the eye the gun sat at **`-roomOffset`**. The owner’s own sentence there is this ticket’s instinct: *“the arm should be staying attached to the camera area.”* That DIG answered: **the anchor is the bug, not the absence of a Bond arm** (`#41` later).
+
+`docs/200` then **collapsed** the room term: if the **view already carries** head pose, gun position is simply **raw play-space hand** (no head subtract). Adding the room term again double-counts (gun runs at 2× walk). `G-200`: *hold the gun, walk — it must come with you, not at double speed.*
+
+**vr442 Latest inverted the 194 premise.** Boot parks `HEAD_TRANSLATE=0`. The **eye no longer carries roomscale XZ**. GUNMOUNT / raw grip still can. `200`’s “no head term” is then the **wrong** default: raw stage fist + Bond-centered camera = **196 with the sign flipped** — the gun walks with your feet while the picture stays, or `HANDYAW=2` yaws that leftover around the old origin (slight skew). Recenter writes a new snapshot → #74’s “have to recenter often.”
+
+PD `docs/102` trap 6: anything already in play space must use a **separate recenter quat**, not the HMD quat, **or head yaw folds in twice.** `HANDYAW=2` + `HEADYAW=1` without a shared recenter number is that trap on the native path.
+
+So Rank 1 (`GUNREBASE` = head-relative fist, then add **current** camera) is `196` §2 written for **HT=0**. If HT is later restored, drop the head subtract again (`200`) — one term, one place, above draw **and** ray. Do not ship both.
 
 ---
 
@@ -314,12 +339,20 @@ This **is** auto-soft-recenter **XZ-only**. It is **not** `HEADYAW=0`. It will m
 | **B0-PASS 3** | “Standing on the reset spot, turning my head, the comfort pass still holds — the world does **not** shear the way it did before PLAYSPACE.” |
 | **B0-FAIL** | “Sidestep already keeps the gun welded to the controller.” **Stop. This binary is not vr442 Latest, or #74 is not wearing.** |
 
-**Run S — owner stare (B0 is the FAIL we are fixing):**
+**Run S — owner stare ([#74](https://github.com/no6969el/GEVR/issues/74); B0 is the FAIL we are fixing):**
 
 | | Tester sentence |
 |--|-----------------|
 | **S-PASS** | “Recenter, guns out, physical sidestep 0.5–1 m, no stick. **Guns stay locked to the controllers.** I do not want a recenter.” |
 | **S-FAIL** | “Arms drift / skew until I chord.” |
+
+**Run F — forward/back split (same B0, no stick):**
+
+| | Tester sentence |
+|--|-----------------|
+| **F-196** | “I walk **forward**; the gun comes **at** me.” → classic `196` (view moved, gun did not). Unexpected on HT=0; write it down. |
+| **F-INV** | “I walk forward / sidestep; the **world stays**, the gun / cube **goes with my feet** or skews around the old spot.” → **#74 expected** on vr442 (`200` raw fist + no eye XZ). |
+| **F-LOCK** | “Gun stays on the controller; I do not want a recenter.” → B0-FAIL; this zip is not wearing #74. |
 
 **Run P0 — `GETV_VR_GUNREBASE=1` only:**
 
@@ -371,18 +404,25 @@ Same sidestep. PASS = both keep the fist. FAIL-only-on-one → runtime `LOCAL` v
 
 ---
 
-## 6. GEVR issue
+## 6. Canonical tracker
 
-**Do not file a new issue.** [GEVR #74](https://github.com/no6969el/GEVR/issues/74) already **is** this ask (opened 2026-09-20, label `bug`, “Dig started.”).
+**[GEVR #74](https://github.com/no6969el/GEVR/issues/74)** is the tracker for this DIG and any later APPLY. Filed by the owner 2026-09-20. This PR / RESULT does not open a second issue.
+
+Related, stay **open and split**:
+
+| Issue | Why it is not #74 |
+|-------|-------------------|
+| [#45](https://github.com/no6969el/GEVR/issues/45) | Floor / reset-spot (`FLOOR_M`, `FLOOR_INJECT`). Comfort-pass **look-around** shear. |
+| [#39](https://github.com/no6969el/GEVR/issues/39) | Huge + cross-eye **at rest** (GUNEYE). |
+| [#41](https://github.com/no6969el/GEVR/issues/41) | Colocated Bond body. Wrong parent first = fake attach (`196` §5). |
+| [#70](https://github.com/no6969el/GEVR/issues/70) / [#55](https://github.com/no6969el/GEVR/issues/55) | Why `HEAD_TRANSLATE=0` is PARK. Do not restore as the #74 fix. |
 
 Suggested #74 comment (human / Director — this agent cannot write GitHub issues):
 
-> DIG (no APPLY) on `goldeneye-native`: `getv/patches/room-strafe-arms-dig/RESULT.md`.  
-> Distinct from #39 (GUNEYE / rest stereo) and #45 (floor / `RECENTER_YAWONLY`).  
-> First sit: `GETV_VR_GUNREBASE=1` default OFF — head-relative grip each frame.  
+> DIG (no APPLY): `no6969el/goldeneye-native` `getv/patches/room-strafe-arms-dig/RESULT.md` / PR on that repo.  
+> #74 is the tracker. Distinct from #39 and #45.  
+> First sit: `GETV_VR_GUNREBASE=1` default OFF — head-relative grip each frame (`196` for HT=0).  
 > Do not flip `HEADYAW` / `AUTORECENTER`. Do not restore `HEAD_TRANSLATE=1` as the fix.
-
-Related, do **not** close: #45 (floor), #39 (gun scale / cross-eye), #41 (body).
 
 ---
 
@@ -390,6 +430,6 @@ Related, do **not** close: #45 (floor), #39 (gun scale / cross-eye), #41 (body).
 
 - No personal credit paths edited.
 - No GoldenEye ROM, assets, or dumps.
-- PD viewSpace / one-yaw-recenter notes are **map-only** (public GEVR `docs/86`). Do not copy PD sources.
+- PD viewSpace / one-yaw-recenter / separate-recenter-quat notes are **map-only** (public GEVR `docs/86`, `docs/102`). Roomscale-origin history is `docs/193`–`200`. Do not copy PD sources.
 - Workshop C (`geStereoXr*`, live `HANDYAW` / playspace bodies) stays private until release policy flips.
 - Decomp citations are `n64decomp/007` (all rights reserved); this DIG describes call sites, it does not vendor the game.
