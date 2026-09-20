@@ -11,7 +11,7 @@
  *
  * Do not parent to HMD / watch / GETV_VR_HUB.
  * Do not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE.
- * Do not register GETV_XR_TURN_SCALE here (Phase 3).
+ * Ship rows come from geVrOptEnsureShipRows (Tick / Evaluate).
  * Face A is the #32 trap — confirm is trigger / poke only.
  */
 
@@ -52,9 +52,11 @@ static void ge_vr_opt_panel_hub_frame(int cinema_or_hub_this_frame,
      *   header "VR SETTINGS" + close (geVrOptPanelCloseHot)
      *   later rows: LEFT name+value, RIGHT chevron; hover = glow outline
      *   enum dropdown: GetDropdownQuad — RIGHT of main, never overlaps
+     * Rows (EnsureShipRows): TURN SPEED / TURN STYLE / HEIGHT.
+     *   LEFT name+value, RIGHT chevron; hover = glow outline
+     *   TURN STYLE dropdown: GetDropdownQuad — RIGHT of main, never overlaps
      * Laser: for each hand, GetLaser → draw origin→hit while panel is up.
      * Select = trigger. Face A is the #32 trap. TOUCHUSE = fallback only.
-     * Phase 2: zero ship rows.
      */
     {
         GeVrOptChrome chrome;

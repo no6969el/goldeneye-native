@@ -1,12 +1,12 @@
 # SUGGESTED-ROWS — live getenv only (GEVR #76)
 
-Owner want: **not** a full options dump. Three families, player-picked, **existing vars only**. Do not invent knobs. Do not register any of these in Phase 2. Wire a row only after Owner green-lights it.
+Owner want: **not** a full options dump. Three families, player-picked, **existing vars only**. Do not invent knobs. Phase 3–4 registers these three ship rows. Further rows: `ADD-OPTION.md`.
 
 Sources: vr442 `packaging/templates/gevr-vr442-boot.cmd`, KEEP `MANIFEST.json` / `GRADUATED-KNOBS.md`, Phase 1 DIG `getv/patches/vr-options-panel-dig/RESULT.md` (PR #37).
 
 ---
 
-## 1. Turn speed — Phase 3 first row
+## 1. Turn speed — ship row `turn_scale`
 
 | Knob | vr442 | Class | Use |
 |------|-------|-------|-----|
@@ -20,7 +20,7 @@ Wiped on boot (not a second scale): `GETV_XR_TURN_INVERT`, `GETV_XR_TURN_HAND`.
 
 ---
 
-## 2. Smooth vs snap turn — later registry enum
+## 2. Smooth vs snap turn — ship row `turn_mode` (GETV_XR_TURN path)
 
 | Knob | vr442 | Notes |
 |------|-------|-------|
@@ -35,11 +35,11 @@ getenv("GETV_XR_TURN")
 getenv("GETV_XR_TURN_SCALE")
 ```
 
-If a live snap symbol exists, **use that name**. If it does not, **stop** — do not invent `GETV_XR_SNAP` / `GETV_XR_TURNSNAP`.
+No live snap getenv on vr442. The row is an enum on the **existing** `GETV_XR_TURN` integrator (`geVrTurnModeGet/Set`). **Do not invent `GETV_XR_SNAP` / `GETV_XR_TURNSNAP`.** `GETV_XR_TURN` stays **1** (armed).
 
 ---
 
-## 3. Height adjustment — later row, #45 family only
+## 3. Height adjustment — ship row `floor_m` (#45 family only)
 
 | Knob | vr442 | Class | Use |
 |------|-------|-------|-----|
@@ -63,6 +63,6 @@ Do not mint `GETV_XR_HEIGHT` / `GETV_VR_HEIGHT`.
 
 Do **not** copy a reference-video option list (Hand / 6DoF / Haptic / Button Sensitivity). Look/feel only.
 
-## Phase 2
+## Phase 3–4
 
-Empty glass + `GeVrOptKind` {slider, toggle, enum}. **Zero rows registered.** Rank 1: aim-ray **laser** (`geVrGetAimRay`) + **trigger**. Rank 2: TOUCHUSE ± poke highlight only. Face A is the #32 trap.
+Same glass + laser + trigger as Phase 2. Three ship rows: `turn_scale`, `turn_mode`, `floor_m`. Persist sidecar after boot `=60`. `GETV_VR_OPT_PANEL` default **OFF**.

@@ -1,9 +1,14 @@
 /*
  * ge_vr_opt.h — world-locked hub options panel + option registry (GEVR #76).
  *
- * Phase 2: empty panel + registry shell. No ship rows. Phase 3 may register
- * GETV_XR_TURN_SCALE as the first slider. Later rows only if Owner green-lights
- * them; see getv/patches/vr-options-panel-apply/SUGGESTED-ROWS.md.
+ * Phase 2 chrome / host / laser+trigger are unchanged. Phase 3–4 ship rows:
+ *   turn_scale  slider  GETV_XR_TURN_SCALE (default 60)
+ *   turn_mode   enum    smooth vs snap on the existing GETV_XR_TURN path
+ *   floor_m     slider  GETV_XR_FLOOR_M (default -0.200)
+ *
+ * Menu writes those caches (setter unlatches). Optional sidecar
+ * gevr-player-prefs.cmd is meant to be `call`ed AFTER boot `=60`.
+ * No second yaw. No GETV_XR_SNAP / GE_VR_SNAP_TURN. No FLOOR_INJECT flip.
  *
  * Host-agnostic C89 ABI. Workshop cinema / PLAY_SCREEN draw calls the pose
  * + hub gate + tick. Aim-ray laser + trigger select (not Face A).
@@ -51,6 +56,26 @@ extern "C" {
 
 #define GE_VR_OPT_PANEL_TITLE "VR SETTINGS"
 
+#define GE_VR_OPT_ID_TURN_SCALE "turn_scale"
+#define GE_VR_OPT_ID_TURN_MODE  "turn_mode"
+#define GE_VR_OPT_ID_FLOOR_M    "floor_m"
+#define GE_VR_OPT_SHIP_ROWS     3
+
+#define GE_VR_TURN_SCALE_DEFAULT 60
+#define GE_VR_TURN_SCALE_MIN     10
+#define GE_VR_TURN_SCALE_MAX     150
+#define GE_VR_TURN_SCALE_STEP    10
+
+#define GE_VR_TURN_MODE_SMOOTH 0
+#define GE_VR_TURN_MODE_SNAP   1
+
+#define GE_VR_FLOOR_M_DEFAULT (-0.200f)
+#define GE_VR_FLOOR_M_MIN     (-0.50f)
+#define GE_VR_FLOOR_M_MAX     (0.30f)
+#define GE_VR_FLOOR_M_STEP    0.05f
+
+#define GE_VR_OPT_PREFS_NAME "gevr-player-prefs.cmd"
+
 /* Look/feel chrome (workshop blit). Not a row dump — do not copy Hand/6DoF/Haptic. */
 #define GE_VR_OPT_CHROME_GLASS_R 0.06f
 #define GE_VR_OPT_CHROME_GLASS_G 0.07f
@@ -82,7 +107,7 @@ typedef struct GeVrOptDesc {
     float slider_min, slider_max, slider_step;
     const char *const *enum_labels;
     int enum_count;
-    /* Host owns persist. Phase 3 wires existing getenv caches here. */
+    /* Host owns persist. Ship rows write the existing TURN_SCALE / TURN / FLOOR_M caches. */
     float (*get_f)(void *ctx);
     void  (*set_f)(void *ctx, float v);
     int   (*get_i)(void *ctx);
@@ -90,10 +115,33 @@ typedef struct GeVrOptDesc {
     void *ctx;
 } GeVrOptDesc;
 
-/* Returns row index, or -1. Phase 2 ships with zero registered rows. */
+/* Returns row index, or -1. Reset / Tick / Evaluate register the 3 ship rows. */
 int geVrOptRegister(const GeVrOptDesc *desc);
 int geVrOptCount(void);
 void geVrOptClear(void);
+void geVrOptEnsureShipRows(void);
+
+/*
+ * Existing GETV_XR_TURN_SCALE cache (default 60). First get latches getenv.
+ * Setter unlatches the U-04 trap — do not _putenv after first read.
+ * Workshop port_input.c must call Get, not a second static.
+ */
+int  geVrTurnScaleGet(void);
+void geVrTurnScaleSet(int v);
+
+/* GETV_XR_TURN: 1 = right-stick yaw armed (KEEP). Menu does not flip this to 0. */
+int geVrTurnArmed(void);
+
+/*
+ * Smooth vs snap on the existing GETV_XR_TURN integrator. Not a second yaw
+ * and not GETV_XR_SNAP / GE_VR_SNAP_TURN. Default SMOOTH.
+ */
+int  geVrTurnModeGet(void);
+void geVrTurnModeSet(int mode);
+
+/* Existing GETV_XR_FLOOR_M cache (default -0.200). Does not flip FLOOR_INJECT. */
+float geVrFloorMGet(void);
+void  geVrFloorMSet(float metres);
 
 int geVrOptGetKind(int index, GeVrOptKind *out);
 const char *geVrOptId(int index);
@@ -212,7 +260,7 @@ int geVrOptPanelHovered(void);
 int geVrOptPanelCloseHot(void);
 void geVrOptPanelDismiss(void);
 
-/* Tests: clear rows + hover + hub. Does not unlatch GETV_VR_OPT_PANEL. */
+/* Tests: clear rows + hover + hub + pref caches. Does not unlatch GETV_VR_OPT_PANEL. */
 void geVrOptReset(void);
 
 #ifdef __cplusplus

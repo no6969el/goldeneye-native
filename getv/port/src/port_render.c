@@ -136,9 +136,10 @@ static int ge_vr_gunrebase(void)
     return on;
 }
 
-/* GEVR #76 Phase 2. Unset / empty / 0 = OFF (ship). Chair-only until PASS.
- * Do not KEEP-ON. Do not add to gevr-*-boot.cmd. Live panel + registry are
- * include/ge_vr/ge_vr_opt.h. Workshop: same getenv next to PLAY_SCREEN draw.
+/* GEVR #76. Unset / empty / 0 = OFF (ship). Chair-only until PASS.
+ * Do not KEEP-ON. Do not add to gevr-*-boot.cmd. Live panel + caches are
+ * include/ge_vr/ge_vr_opt.h (geVrTurnScaleGet/Set, geVrFloorMGet/Set).
+ * Workshop: same getenv next to PLAY_SCREEN draw / port_input.c yaw.
  * Does not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE. */
 static int ge_vr_opt_panel(void)
 {
@@ -148,6 +149,32 @@ static int ge_vr_opt_panel(void)
         on = (e != NULL && e[0] != '\0') ? (atoi(e) != 0) : 0; /* default OFF */
     }
     return on;
+}
+
+/* Reference only. Live cache+setter is geVrTurnScaleGet/Set — do not copy
+ * this latch into port_input.c (U-04). Default 60. */
+static int ge_xr_turn_scale(void)
+{
+    static int v = -1;
+    if (v < 0) {
+        const char *e = getenv("GETV_XR_TURN_SCALE");
+        v = (e != NULL && e[0] != '\0') ? atoi(e) : 60;
+    }
+    return v;
+}
+
+/* Reference only. Live cache+setter is geVrFloorMGet/Set. Default -0.200.
+ * Do not KEEP-ON FLOOR_INJECT from the menu. */
+static float ge_xr_floor_m(void)
+{
+    static int on = -1;
+    static float v = -0.200f;
+    if (on < 0) {
+        const char *e = getenv("GETV_XR_FLOOR_M");
+        v = (e != NULL && e[0] != '\0') ? (float)atof(e) : -0.200f;
+        on = 1;
+    }
+    return v;
 }
 
 /* Dam crates #29: ship opaque prop fog + occlusion skip ON when unset. */
