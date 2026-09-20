@@ -2,13 +2,18 @@ rem Chair-only. Do not merge into Start-GEVR.bat / gevr-*-boot.cmd until PASS.
 rem Run AFTER the boot cmd has exported PLAY0 / KEEP (vr442 Latest).
 rem
 rem   1. Start-GEVR.bat
-rem   2. This scratch line on the same cmd:
+rem   2. This scratch block on the same cmd:
 set GETV_VR_OPT_PANEL=1
 rem
+rem BODY_TRANSLATE stack (chair only — do not bake into ship boot).
+rem Grep workshop for the live name (GETV_XR_BODY_TRANSLATE / GETV_VR_BODY_TRANSLATE)
+rem and keep that assign. Do not invent a second ship name.
+set GETV_XR_BODY_TRANSLATE=1
+rem
+rem Ship cinema stays: GETV_XR_PLAY_SCREEN=2, AUTOSCREEN=1.
 rem Expect once: [getv][optpanel] GETV_VR_OPT_PANEL=1 hub
-rem Stay on intro / file-select. Panel is on the RIGHT of the cinema.
-rem Rows: TURN SPEED (GETV_XR_TURN_SCALE) / TURN STYLE / HEIGHT (FLOOR_M).
-rem Start a mission → panel must be gone.
+rem Stay on intro / file-select. Dark glass on the RIGHT of the cinema.
+rem Laser + trigger. Start a mission → panel must be gone.
 rem
 rem Persist (optional): after boot set GETV_XR_TURN_SCALE=60,
 rem   if exist gevr-player-prefs.cmd call gevr-player-prefs.cmd
@@ -16,5 +21,7 @@ rem
 rem Do not set GETV_XR_FOVMATCH.
 rem Do not restore GETV_XR_HEAD_TRANSLATE=1.
 rem Do not flip GETV_VR_PLAYSPACE / GETV_VR_GUNREBASE for this sit.
+rem Do not edit bondview2.
 rem Do not set GETV_UNLOCKALL.
 rem Do not KEEP-ON GETV_XR_FLOOR_INJECT from this sit.
+rem Do not add GETV_VR_OPT_PANEL=1 to gevr-*-boot.cmd / $requiredBootKnobs.

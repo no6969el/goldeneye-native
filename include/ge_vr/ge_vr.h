@@ -235,9 +235,10 @@ void geVrRecenter(void);
 /*
  * Hub options panel (GEVR #76): include ge_vr/ge_vr_opt.h.
  * GETV_VR_OPT_PANEL unset/empty/0 = OFF. World-locked cinema-hub family
- * (right of PLAY_SCREEN=2), not head-locked. Does not touch HEAD_TRANSLATE,
- * PLAYSPACE, or GUNREBASE. Ship rows write GETV_XR_TURN_SCALE / GETV_XR_TURN
- * mode / GETV_XR_FLOOR_M only.
+ * (right of PLAY_SCREEN=2), not head-locked. Hub gate must include SCREEN=2
+ * (ApplyHubGate). Does not touch HEAD_TRANSLATE, PLAYSPACE, GUNREBASE, or
+ * bondview2. Ship rows write GETV_XR_TURN_SCALE / GETV_XR_TURN mode /
+ * GETV_XR_FLOOR_M only.
  */
 
 #ifdef __cplusplus

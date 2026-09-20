@@ -339,6 +339,52 @@ static void testHubGateAndEvaluate() {
     }
 }
 
+static void testHubGatePlayScreen2() {
+    std::printf("[hub gate includes PLAY_SCREEN=2]\n");
+    geVrOptReset();
+    geVrOptPanelResetCinemaFrame();
+
+    check(geVrOptPanelHubShouldBeActive(0, 2, 0) == 1,
+          "SCREEN=2 is cinema hub without a frontend flag");
+    check(geVrOptPanelHubShouldBeActive(0, 2, 1) == 0,
+          "gameplay stereo eyes kill SCREEN=2");
+    check(geVrOptPanelHubShouldBeActive(1, 0, 0) == 1,
+          "frontend / intro is hub even if SCREEN unread");
+    check(geVrOptPanelHubShouldBeActive(0, 0, 0) == 0,
+          "no frontend + SCREEN=0 is not hub");
+    check(geVrOptPanelHubShouldBeActive(0, 1, 0) == 0,
+          "SCREEN=1 unread: not hub alone");
+
+    geVrOptPanelApplyHubGate(0, 2, 0);
+    check(geVrOptPanelHubActive() == 1, "ApplyHubGate SCREEN=2 sets hub");
+
+    const int on = panelOn() ? 1 : 0;
+    if (on) {
+        check(geVrOptPanelVisible() == 1, "ON + SCREEN=2 cinema = visible");
+        GeVrOptPanelGlassLayer layer{};
+        check(geVrOptPanelGetGlassLayer(&layer) == 1, "glass layer when visible");
+        check(layer.world_locked == 1, "glass is world-locked (cinema family)");
+        check(layer.visible == 1, "layer visible");
+        check(layer.quad.center[0] > 10.0f, "glass RIGHT of cinema");
+        checkNear(layer.chrome.glass_rgba[3], GE_VR_OPT_CHROME_GLASS_A, 1e-4f,
+                  "dark glass alpha");
+    } else {
+        check(geVrOptPanelVisible() == 0, "default OFF: SCREEN=2 still hidden");
+        GeVrOptPanelGlassLayer layer{};
+        check(geVrOptPanelGetGlassLayer(&layer) == 0, "no glass blit when OFF");
+    }
+
+    geVrOptPanelApplyHubGate(0, 2, 1);
+    check(geVrOptPanelHubActive() == 0, "gameplay eyes close hub even if SCREEN=2");
+    check(geVrOptPanelVisible() == 0, "mission: glass gone");
+
+    geVrOptPanelSetHubActive(2);
+    check(geVrOptPanelHubActive() == 1, "SetHubActive(2) is PLAY_SCREEN cinema");
+
+    geVrOptPanelSetHubActive(0);
+    check(geVrOptPanelHubActive() == 0, "explicit 0 still means mission / off");
+}
+
 static void testChromeAndDropdown() {
     std::printf("[glass chrome + dropdown sibling]\n");
     geVrOptReset();
@@ -456,6 +502,7 @@ int main() {
     testWorldLockRight();
     testRayVsCinema();
     testHubGateAndEvaluate();
+    testHubGatePlayScreen2();
     testChromeAndDropdown();
     testPersistSidecar();
     testTriggerTurnSpeed();
