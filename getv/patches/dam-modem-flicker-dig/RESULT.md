@@ -1,7 +1,7 @@
 # RESULT — Dam convert-modem texture flicker (#70) (DIG ONLY)
 
-**Status:** DIG. Chair Run 0 PARTIAL PASS → **5.3b APPLY LANDED** as a SimRig patch (default OFF). Public tree still has no workshop `propobj.c` body.
-**APPLY:** `getv/patches/dam-modem-monframe-apply/` (`001-propobj-monframe.patch`). C-default stays OFF. Do not flip TEXINVAL.
+**Status:** DIG. Chair Run 0 PARTIAL PASS on `HEAD_TRANSLATE=0` (now vr442 boot / **PARK ship**). **5.3b MONFRAME APPLY was REJECTED in chair** (worse). Residual attach-white / on-modem: `getv/patches/dam-modem-residual-dig/RESULT.md`.
+**APPLY:** `getv/patches/dam-modem-monframe-apply/` remains on the tree **default OFF — do not chair again, do not KEEP.** Do not flip TEXINVAL.
 **Ask:** After Bond attaches the covert modem on Dam 007, looking toward that modem makes its texture flicker — even from downstairs under the towers (view-direction / frustum, not standing next to the prop).
 **Constraints:** Do not merge into #55. Not Dam crate pop (#29). KEEP-ON explosion/tex knobs stay ON unless chair proves otherwise. New chair knob (if any) defaults **OFF**.
 **Date:** 2026-09-20.
