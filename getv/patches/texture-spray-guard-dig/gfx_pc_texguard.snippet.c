@@ -1,0 +1,75 @@
+/*
+ * APPLY READY sketch — workshop getv/port/fast3d/gfx_pc.c only.
+ * DIG ONLY on this public tree. Do not land until the class chair (§6 RESULT).
+ *
+ * Site: next to ge_vr_texinval() / ge_vr_texdlretag().
+ * First grep (workshop): gfx_texture_cache_lookup, import_texture_rgba16,
+ * gfx_dp_set_texture_image, geStereoEyeViewport / eye begin-end.
+ *
+ * GETV_VR_TEXGUARD unset/empty/0 = OFF (retail shared cache).
+ * =1 → per-eye snapshot + eye-boundary unbind/scissor + deferred inval.
+ * Banner once: [getv][texguard] GETV_VR_TEXGUARD=1
+ *
+ * KEEP ON: TEXINVAL / TEXDLRETAG / VFXTMEM / VFXSHIFT / TEX16BE.
+ * Explosion texSelect arg2==4 still invals on the sim tick.
+ * Do not wrap propobj.c cmdlists (that is MONFRAME — REJECT).
+ * Do not Dam MTXGUARD=2. HT0 + SKYMESH=0 stay.
+ */
+
+#ifdef GE_PORT_NATIVE
+#include <stdlib.h>
+
+static int ge_vr_texguard(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("GETV_VR_TEXGUARD");
+        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* chair A/B; not KEEP-ON */
+        if (on) {
+            osSyncPrintf("[getv][texguard] GETV_VR_TEXGUARD=1\n");
+        }
+    }
+    return on;
+}
+
+/* Optional subset — skip inval on monitor texSelect only (arg2 1/2, arg3 8). */
+static int ge_vr_moninval(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("GETV_VR_MONINVAL");
+        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* chair A/B; not KEEP-ON */
+        if (on) {
+            osSyncPrintf("[getv][moninval] GETV_VR_MONINVAL=1\n");
+        }
+    }
+    return on;
+}
+
+/*
+ * Call from the TEXINVAL evict site (workshop; body not on this remote):
+ *
+ *   int should_inval = ge_vr_texinval();
+ *   if (ge_vr_texguard()) {
+ *       // Once per sim tick, not per eye. Mode 4 (explosions) still invals.
+ *       if (!gePortSimShouldTick() && texselect_arg2 != 4)
+ *           should_inval = 0;
+ *   }
+ *   if (ge_vr_moninval() && (texselect_arg2 == 1 || texselect_arg2 == 2)
+ *       && texselect_arg3 == 8)
+ *       should_inval = 0;
+ *
+ * Eye begin (LEFT then RIGHT):
+ *   snapshot current texture id + tile + combiner + scissor
+ *   set scissor to this eye's rect (HMD half / flat 320)
+ *
+ * Eye end:
+ *   unbind current GL texture (no leftover tile)
+ *   restore scissor; do not leave the last texrect live
+ *
+ * Cache lookup when TEXGUARD=1:
+ *   include geVrCurrentEye() in the hashmap key  OR
+ *   restore the snapshot so eye 1 cannot evict eye 0 names
+ *   while SrcFbo still presents them.
+ */
+#endif
