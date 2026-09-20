@@ -7,7 +7,9 @@
 **Date:** 2026-09-20.
 **Evidence:** public `goldeneye-native` HEAD (KEEP getenv stubs + prior DIG PRs #5 / #6 / #27 / #29 / #11 / #23), public `no6969el/GEVR` #70/#51/#31/#34/#72 + vr442 boot + Play-on-monitor.bat, public `n64decomp/007` `texSelect` / monitor / explosion / sky / HUD. Workshop `gfx_pc.c` TEXINVAL **body** and `stereo.c` eye loop stay private.
 
-Director can green a **class chair** (`TEXGUARD`), park the leftover, or take the small `MONINVAL` subset from this page alone.
+Director can green a **class chair** (`TEXGUARD` and/or `SCRAPDROP`), park the leftover, or take the small `MONINVAL` subset from this page alone.
+
+Owner add (same day): also rank a **safety net** that drops stray verts / out-of-bounds / screen-spray scraps so the engine refuses to draw garbage, layered with (not replacing) the TMEM path.
 
 Prior #70 pages (specimens, not this class):
 
@@ -29,7 +31,9 @@ This page **supersedes PR29’s “later MONINVAL only” rank.** MONINVAL stays
 | Root class | **One Fast3D texture cache + current RDP tile / scissor, mutated by every `texSelect`, shared across sequential draws and across stereo eyes.** Leftover bind or mid-DL evict paints the **next** primitive (or the other eye’s half-FBO) with the previous tile. That is spray / scrap. |
 | Same on HMD and flat? | **Same mechanism, different viewport geometry.** HMD: leftover fills a large per-eye rect → “through vision.” Flat: leftover is clipped to the 320-class scissor / unused window → “far-corner scrap.” Not a different bug. |
 | Why per-prop knobs fail the ask | `MONINVAL` / glass-impact skip / HUD-only unbind each close **one call site**. The next animating `texSelect` (another monitor, explosion-adjacent, ammo stamp, sky tile) sprays again. Owner would still have to play every action. |
-| System fix (one APPLY) | **`GETV_VR_TEXGUARD`** default **OFF**: per-eye TMEM/cache snapshot + eye-boundary unbind/scissor restore + **deferred inval once per sim tick**. Explosion mode 4 still invals (KEEP #51). All `texSelect` families share the wrapper. |
+| System fix (root, long-term) | **`GETV_VR_TEXGUARD`** default **OFF**: per-eye TMEM/cache snapshot + eye-boundary unbind/scissor restore + **deferred inval once per sim tick**. Explosion mode 4 still invals (KEEP #51). **Texels + scissor state.** |
+| Safety net (belt) | **`GETV_VR_SCRAPDROP`** default **OFF**: discard tris / texrects whose **verts** are NaN, saturated / already-converted, or outside an expanded clip. **Verts, not texels.** Does **not** erase leftover pixels already in the FBO. |
+| One knob or two? | **Two knobs.** Different mechanisms. Do **not** pack both into `TEXGUARD=2` (MTXGUARD-mode lesson). Chair each alone, then both. One APPLY PR may land both getenv stubs. |
 | Smallest falsifier (no C) | Existing `GETV_VR_TEXINVAL=0` (KEEP stays ON). If spray dies and explosions stay orange → greens TEXGUARD. If spray dies and explosions go purple → still greens TEXGUARD (must keep mode-4 inval). |
 | Subset | `GETV_VR_MONINVAL=1` — skip inval **only** on monitor `texSelect` (`arg2` 1/2, `arg3` 8). Chair-cheap if Director wants a modem-only first C. **Not** the class close. |
 | APPLY tonight? | **No.** Workshop body is private. Sketch is APPLY READY **on the workshop** after one class chair. |
@@ -48,6 +52,9 @@ leak                          HMD = spray across the eye rect
                               flat = scrap in the far corner of 320/window
 TEXGUARD=1 (sketch)           snapshot per eye; unbind at eye edge;
                               inval once per sim, not per eye / per leftover
+SCRAPDROP=1 (sketch)          drop NaN / sat / already-converted tris
+                              (verts). Misses valid-tri + wrong texel.
+                              Misses leftover scissor pixels already written.
 ```
 
 ---
@@ -146,6 +153,7 @@ This is **screen-space leftover** (tile + scissor + cache), not a second Dam-mod
 | C5 | PR27 `PROP_CHRBUG` embed / attach white | **Different leftover.** Near-field pop. Not spray across vision. |
 | C6 | #55 portal / HT / #72 sky fill / #31 `render_pos` / #34 RGBA32 line | **Other classes.** TEXGUARD must not “fix” them and must not regress them. |
 | C7 | Per-prop whitelist (MONINVAL only, glass-impact skip, …) | **Rejected as the close.** Valid **subset** A/B. Owner ask is engine-level. |
+| C8 | Safety net: drop stray verts / insane screen pos (owner add) | **Layer, not a substitute.** Catches **NaN / sat / already-converted** tris (docs 292; glass `render_pos` s32-as-f32). **Misses** valid-tri + wrong texel (C1) and leftover **scissor pixels**. Two knobs. |
 
 ---
 
@@ -172,7 +180,52 @@ That is the “game cannot spray textures” switch. One C, all families in §1.
 
 Sketch: `getv/patches/texture-spray-guard-dig/gfx_pc_texguard.snippet.c`.
 
-### 5.2 Subset — `GETV_VR_MONINVAL` (default OFF)
+### 5.2 Safety net — `GETV_VR_SCRAPDROP` (default OFF) — **verts, not texels**
+
+Owner idea: refuse to draw garbage (bad UVs, saturated verts, corner scraps, full-vision flashes) so the engine does not need per-level hunts.
+
+**Name the leftover honestly** — three different things look like “spray / scrap”:
+
+| Leftover | What is wrong | Who catches it | Who misses it |
+|----------|---------------|----------------|---------------|
+| **Texels** | Valid verts, **wrong GL bind** / stale cache after `texSelect` | `TEXGUARD` (C1) | `SCRAPDROP` — the tri is sane |
+| **Verts** | NaN, Inf, saturated clip, docs-292 **already-converted** (s32 words read as f32), stomped `dynAllocate` | `SCRAPDROP` at `gfx_sp_tri1` | `TEXGUARD` — cache is fine |
+| **Scissor pixels** | Last eye / texrect already **written** into the FBO | `TEXGUARD` eye-boundary **unbind + restore scissor** (maybe a dest-rect clamp on TEXRECT) | `SCRAPDROP` — no live verts to drop. A post-process “wipe the corner” is a fourth mechanism; do **not** start there (eats HUD). |
+
+`GETV_VR_VTXGUARD=64` is a **heap poison pad**, not a draw filter. Do **not** reuse that name. Do **not** sit `=0`.
+
+N64 `G_CULLDL` / `triangleRejected` (outcode `0x7030`) already drops **fully off-screen** runs. A corner scrap that the tester **sees** has mixed outcodes — it is **on screen**. Hardware cull will not eat it.
+
+```
+GETV_VR_SCRAPDROP   unset / empty / 0 = OFF   (retail: draw the tri)
+                    1 = reject NaN / Inf / sat / already-converted
+                        and screen pos outside ~8× the current eye viewport
+Banner once: [getv][scrapdrop] GETV_VR_SCRAPDROP=1
+```
+
+**Safe rejects (generic — no prop list):**
+
+1. Any clip or screen component is NaN / Inf.
+2. Already-converted class: `|clip|` or `|screen|` huge (s15.16 bits as float), or `w <= 0` still submitted as a filled tri.
+3. All three verts project **outside** an expanded current-eye viewport (not “tiny island in a corner”).
+
+**Do not** reject “AABB < N px in a corner.” Ammo icons are **5×12**. Status text is lower-left. Dam vista is a few pixels. That heuristic **is** a per-HUD hunt.
+
+**Do not** reject “insane UV.” `monAnim05GreenTextUp` `MONVERTSCROLL` *is* large `s`/`t` (`width * (xmid ± frac) * 32`). That would drop the modem **picture**.
+
+Site: workshop `gfx_pc.c` `gfx_sp_tri1` / `gfx_draw_rectangle` (TEXRECT dest, not game `propobj.c`). Same file as TEXGUARD. **Two getenv.**
+
+### 5.3 One falsifier or two?
+
+| Packing | Verdict |
+|---------|---------|
+| One knob `TEXGUARD=1` does both | **No.** Chair cannot tell texel leak from sat verts. |
+| `TEXGUARD=2` means +scrapdrop | **No.** MTXGUARD 1=observe / 2=skip already burned Dam. |
+| **Two knobs, both default OFF** | **Yes.** One APPLY PR may add both stubs. Wear **D** then **G** then **D+G**. |
+
+Long-term preferred: **TEXGUARD** (root). **SCRAPDROP** stays the belt for sat/NaN that isolation will never fix (glass `render_pos`, dyn stomp). Layer is legal. Substitute is not.
+
+### 5.4 Subset — `GETV_VR_MONINVAL` (default OFF)
 
 PR29 sketch, still valid as a **small falsifier**:
 
@@ -185,7 +238,7 @@ Banner once: [getv][moninval] GETV_VR_MONINVAL=1
 
 Closes Dam modem **if** C2 is monitor-only. Does **not** close glass-adjacent spray, HUD corner scraps, or the next TV. Do not KEEP. Do not boot.
 
-### 5.3 Do not land
+### 5.5 Do not land
 
 | Knob / move | Why |
 |-------------|-----|
@@ -196,8 +249,11 @@ Closes Dam modem **if** C2 is monitor-only. Does **not** close glass-adjacent sp
 | `GETV_STEREO_REBUILD=0` / `GETV_STEREO=0` | Breaks fusion. Owner F0 FAIL on watch. |
 | `GETV_VR_BLOODINVAL` / `TMEMMAP=1` | Wiped / off. Not a new whitelist. |
 | Per-stage allowlist of props | Owner ask forbids it as the close. |
+| “Drop tiny corner AABB < N px” | Eats HUD (5×12 ammo) and Dam vista. Not generic. |
+| Post-process wipe of a corner island | Scissor-pixel erase. Eats HUD. Fourth mechanism. Do not start. |
+| Reuse `GETV_VR_VTXGUARD` as a draw filter | Wrong knob (64 KB poison). KEEP 64. |
 
-### 5.4 Later UV-once (not this class, not MONFRAME)
+### 5.6 Later UV-once (not this class, not MONFRAME)
 
 If chair T/G **FAIL** and leftover is **crawl on the screen in both eyes** (PR29 L2): new `GETV_VR_MONSCROLL`, gate `geVrCurrentEye()==LEFT`, skip scroll increments only, **always** `TVCMD_SETTEXTURE` + `texSelect`. Do **not** reuse `MONFRAME`.
 
@@ -222,22 +278,47 @@ If chair T/G **FAIL** and leftover is **crawl on the screen in both eyes** (PR29
 | **M-HMD** | Dam 007, attach convert modem, look from distance **and** on the dish: “No scrap / flash **through vision**.” |
 | **M-FLAT** | Same attach, flat: “No far-corner scrap.” |
 | **G-HMD** | Facility (or Archives) shoot **unbroken glass**: “No leftover texture sprayed across the view.” (Holes may still be one-eye — that is #31; write it.) |
-| **H-HMD** | Combat HUD visible: “No stamp / glyph leftover in a corner or across the eye.” |
+| **H-HMD** | Combat HUD visible: “No stamp / glyph leftover in a corner or across the eye.” **HUD itself still draws** (ammo 5×12, status text). |
 | **X-HMD** | One explosion in view: “Fire stays orange. No extra scrap besides the flare.” |
 
 **Knob runs** (one change, restore after). Unset = ship.
 
 | Run | Env | If **M+G+H scraps die** | If scraps **stay** |
 |-----|-----|-------------------------|--------------------|
-| **T** | `GETV_VR_TEXINVAL=0` | C2. Check **E-PASS**. Do **not** ship OFF. Greens **TEXGUARD**. | Restore. Not global inval. Go G. |
+| **T** | `GETV_VR_TEXINVAL=0` | C2. Check **E-PASS**. Do **not** ship OFF. Greens **TEXGUARD**. | Restore. Not global inval. Go D or G. |
 | **R** | `GETV_VR_TEXDLRETAG=0` | Retag. Same: scoped/deferred, KEEP ON. | Restore. |
-| **G** | `GETV_VR_TEXGUARD=1` (after APPLY) | **Class PASS.** Wear default OFF until KEEP talk. | Isolation insufficient; note which family remains. |
+| **D** | `GETV_VR_SCRAPDROP=1` only (TEXGUARD unset) | **Vert class.** See §6.1. | Restore. Not sat/NaN verts. Go G. |
+| **G** | `GETV_VR_TEXGUARD=1` only (SCRAPDROP unset) | **Texel/scissor class.** Wear default OFF until KEEP talk. | Isolation insufficient; note which family remains. |
+| **DG** | both `=1` | Layer PASS if D or G was partial. | Both miss — C4 UV or C6. |
 | **N** | `GETV_VR_MONINVAL=1` only | **Modem-only.** If G/H still scrap → subset confirmed, still need TEXGUARD. | Restore. Not monitor-inval. |
 | **S** | `GETV_SUPERSAMPLE=1` (restore **3**) | SrcFbo / first-eye present. **Do not** ship SS1. | Restore 3. |
 
-**PASS for the class:** G (or T without purple) kills **both** HMD spray and flat corner on **modem + one non-monitor family** (glass leftover or HUD stamp), and **E-PASS** holds.
+**PASS for the texel class:** G (or T without purple) kills **both** HMD spray and flat corner on **modem + one non-monitor family**, and **E-PASS** + HUD still visible.
 
-**FAIL for the class:** scraps remain with TEXGUARD=1 and TEXINVAL=0 → not cache/tile (revisit C4 UV or C6 other tickets). **Park** that specimen; do not invent a prop whitelist.
+**PASS for the vert safety net:** D kills **M-FLAT or M-HMD** **and** one second family, HUD/vista still there. §6.1.
+
+**FAIL for the class:** scraps remain with **DG** and TEXINVAL=0 → not cache/tile and not sat verts (revisit C4 UV or C6). **Park** that specimen; do not invent a prop whitelist.
+
+### 6.1 Smallest chair that proves the safety net (no per-asset list)
+
+The C has **no** `PROP_MODEMBOX` / glass / HUD branch. Chair uses two **specimens** of the same generic reject.
+
+**Wear:** Latest. `set GETV_VR_SCRAPDROP=1` only. No TEXGUARD. No MONINVAL. No MONFRAME. No MTXGUARD=2.
+
+| | Action | PASS sentence |
+|--|--------|----------------|
+| **D1** | Dam 007, attach convert modem, stare from distance + on dish. Flat **and** HMD. | “Modem corner scrap / vision spray is **gone**.” |
+| **D2** | **Second known spray, different `texSelect` family** — Facility unbroken glass leftover, **or** a downstairs Dam **TV** if glass has no leftover that day. Not a new whitelist in C. | “That second leftover is **also gone**.” |
+| **D-HUD** | Combat HUD on the same sitting. | “Ammo stamp and status text still **draw**. No new missing corner of the real HUD.” |
+| **D-VISTA** | Dam far terrain / bridge from the dish. | “The vista is not punched out.” |
+| **E-PASS** | One explosion. | Still orange. |
+
+| D1+D2 | Meaning |
+|-------|---------|
+| **Both die, HUD/vista hold** | Safety net is a **class** vert reject. Layer with TEXGUARD. Do **not** KEEP yet. |
+| **Only D1 dies** | Heuristic is still modem-shaped (too tight) or D2 was texel-only. Do not ship as the close. |
+| **Neither dies** | Scraps are **texels / scissor pixels** (C1). SCRAPDROP is the wrong layer. Go G. |
+| **HUD or vista dies** | Reject is too wide (corner-AABB leaked in). **FAIL.** Tighten to NaN/sat only; do not ship. |
 
 ---
 
@@ -248,7 +329,7 @@ If chair T/G **FAIL** and leftover is **crawl on the screen in both eyes** (PR29
 | #51 purple if TEX16BE off | **Byte-order / decode.** KEEP stays. TEXGUARD must not flip TEX16BE. |
 | #55 Facility/Bunker **black** | Portal / room drop / HT. Not a tile leak. MTXGUARD=2 stays bat-only. |
 | #72 Dam **blue** fill | Sky fill / scissor. SKYMESH=0 already PASS. |
-| #31 glass holes **one-eye** | Likely in-place `render_pos` convert, not leftover bind. TEXGUARD may still eat a **spray** around the pane. |
+| #31 glass holes **one-eye** | Likely in-place `render_pos` convert, not leftover bind. TEXGUARD may still eat a **spray** around the pane. `SCRAPDROP` may eat **sat** hole tris (already-converted) — write it; do not call that a hole **placement** fix. |
 | #34 ammo **fat / speck** | Dest-X aspect + RGBA32 `line` vs `import_texture_rgba32`. Wrong pixels, not leftover. |
 | #29 crate pop | Fog / OCCLSKIP. |
 | #58 watch highlight | Per-eye input toggle, not TMEM. |
@@ -263,10 +344,11 @@ If the class chair PASSes, owner should not need a new ticket for “this TV on 
 
 | Rank | Move | When |
 |------|------|------|
-| **1. Chair the class, then APPLY `TEXGUARD` default OFF** | **Lead.** One sitting (§6). Workshop C after T-PASS / T-COST / G. Makes the engine unable to spray. | Owner ask. |
-| **2. Chair existing `TEXINVAL=0` only** | No C. Proves C2. KEEP stays ON. | Before any workshop edit. |
-| **3. Subset `MONINVAL`** | Modem-only skip. Default OFF. | If Director wants a smaller first C, or T-COST with only M-HMD dying. **Not** the close. |
-| **4. Park leftover** | Honest if class chair is FAIL and scraps are slight. HT0 + SKYMESH=0 stay ship. | After T/G FAIL, not instead of ranking the system fix. |
+| **1. Root harden `TEXGUARD` default OFF** | **Preferred long-term.** Per-eye / once-per-sim tex state. Texels + scissor. One sitting (§6 run G). | Owner “engine cannot spray” ask. |
+| **2. Safety net `SCRAPDROP` default OFF** | **Belt.** Drop NaN/sat/already-converted tris. Verts. Chair **D** then **D1+D2** (§6.1). Layer after each-alone, never as TEXGUARD=2. | Owner add. Catches garbage TEXGUARD will never see. |
+| **3. Chair existing `TEXINVAL=0` only** | No C. Proves C2. KEEP stays ON. | Before any workshop edit. |
+| **4. Subset `MONINVAL`** | Modem-only skip. Default OFF. | Smaller first C, or T-COST with only M-HMD dying. **Not** the close. |
+| **5. Park leftover** | Honest if **DG** + T FAIL and scraps are slight. HT0 + SKYMESH=0 stay ship. | After the class chair, not instead of ranking 1–2. |
 
 Park does **not** unblock MONFRAME or Dam MTXGUARD=2.
 
@@ -276,8 +358,11 @@ Park does **not** unblock MONFRAME or Dam MTXGUARD=2.
 
 | If you say… | Then… |
 |-------------|--------|
-| **Green class chair (T then TEXGUARD)** | **Recommended.** Sit §6. No C until T/G. |
-| **Green `TEXGUARD` APPLY (default OFF)** | Workshop `gfx_pc.c` after T-PASS / T-COST. Sketch in this folder. KEEP TEXINVAL ON. |
+| **Green class chair (T, then D, then G, then DG)** | **Recommended.** Sit §6 + §6.1. No C until those runs. |
+| **Green `TEXGUARD` APPLY (default OFF)** | Workshop `gfx_pc.c` after T-PASS / T-COST / G. Root harden. KEEP TEXINVAL ON. |
+| **Green `SCRAPDROP` APPLY (default OFF)** | Same file, **second** getenv. After D1+D2 PASS and D-HUD / D-VISTA hold. Layer, not substitute. |
+| **Green both stubs in one APPLY PR** | Allowed. Still **two knobs**, both default OFF. |
+| **Pack scrapdrop into `TEXGUARD=2`** | **Rejected.** |
 | **Green `MONINVAL` only** | Allowed as subset. Expect G/H scraps to remain. |
 | **Park leftover / close #70 as residual-known** | Legal after HT0. Does **not** answer the widened ask. |
 | **Green MONFRAME again / Dam MTXGUARD=2** | **Rejected.** |

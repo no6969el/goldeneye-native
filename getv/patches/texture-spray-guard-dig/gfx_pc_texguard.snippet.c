@@ -10,10 +10,16 @@
  * =1 → per-eye snapshot + eye-boundary unbind/scissor + deferred inval.
  * Banner once: [getv][texguard] GETV_VR_TEXGUARD=1
  *
+ * GETV_VR_SCRAPDROP unset/empty/0 = OFF.
+ * =1 → discard NaN / Inf / sat / already-converted tris (VERTS).
+ * Banner once: [getv][scrapdrop] GETV_VR_SCRAPDROP=1
+ * Two knobs. Do not pack scrapdrop into TEXGUARD=2.
+ *
  * KEEP ON: TEXINVAL / TEXDLRETAG / VFXTMEM / VFXSHIFT / TEX16BE.
  * Explosion texSelect arg2==4 still invals on the sim tick.
  * Do not wrap propobj.c cmdlists (that is MONFRAME — REJECT).
  * Do not Dam MTXGUARD=2. HT0 + SKYMESH=0 stay.
+ * Do not sit GETV_VR_VTXGUARD=0 (heap poison, not this filter).
  */
 
 #ifdef GE_PORT_NATIVE
@@ -27,6 +33,19 @@ static int ge_vr_texguard(void)
         on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* chair A/B; not KEEP-ON */
         if (on) {
             osSyncPrintf("[getv][texguard] GETV_VR_TEXGUARD=1\n");
+        }
+    }
+    return on;
+}
+
+static int ge_vr_scrapdrop(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("GETV_VR_SCRAPDROP");
+        on = (e != NULL && *e != '\0') ? (atoi(e) != 0) : 0; /* chair A/B; not KEEP-ON */
+        if (on) {
+            osSyncPrintf("[getv][scrapdrop] GETV_VR_SCRAPDROP=1\n");
         }
     }
     return on;
@@ -71,5 +90,12 @@ static int ge_vr_moninval(void)
  *   include geVrCurrentEye() in the hashmap key  OR
  *   restore the snapshot so eye 1 cannot evict eye 0 names
  *   while SrcFbo still presents them.
+ *
+ * SCRAPDROP=1 at gfx_sp_tri1 / gfx_draw_rectangle (not propobj.c):
+ *   drop if any clip/screen is NaN or Inf
+ *   drop if already-converted (huge |clip| / |screen|, or w<=0 filled)
+ *   drop if all verts are outside ~8× the current eye viewport
+ *   do NOT drop tiny corner AABB (HUD 5x12 / Dam vista)
+ *   do NOT drop large s/t (monitor MONVERTSCROLL is legal)
  */
 #endif

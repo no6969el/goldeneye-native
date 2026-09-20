@@ -2,7 +2,9 @@
 
 **Status:** DIG ONLY. **Not APPLY READY** on this public tree. No C landed.
 
-**Lead:** `GETV_VR_TEXGUARD` (default OFF) — engine-level shared TMEM / `texSelect` / stereo guard so leftover tiles cannot spray across vision (HMD) or sit in a far corner (flat).
+**Lead (texels + scissor):** `GETV_VR_TEXGUARD` (default OFF) — per-eye / once-per-sim tex state so leftover tiles cannot spray across vision (HMD) or sit in a far corner (flat).
+
+**Safety net (verts):** `GETV_VR_SCRAPDROP` (default OFF) — discard NaN / sat / already-converted tris. Layer, not a substitute. Two knobs, not `TEXGUARD=2`.
 
 **Subset:** `GETV_VR_MONINVAL` (default OFF) — skip TEXINVAL on monitor `texSelect` only. Not the class close.
 
