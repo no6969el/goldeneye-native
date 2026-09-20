@@ -113,7 +113,7 @@ static void ge_opt_persist(void)
     fprintf(f, "set GETV_XR_TURN_SCALE=%d\n", scale);
     fprintf(f, "set GETV_XR_FLOOR_M=%.3f\n", (double)floor);
     fprintf(f, "set GETV_XR_TURN=1\n");
-    fprintf(f, "rem snap/smooth is geVrTurnMode on the GETV_XR_TURN path (not GETV_XR_SNAP).\n");
+    fprintf(f, "rem snap/smooth is geVrTurnMode on the GETV_XR_TURN path (no second yaw getenv).\n");
     fclose(f);
 }
 

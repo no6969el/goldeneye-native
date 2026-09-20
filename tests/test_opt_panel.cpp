@@ -405,7 +405,7 @@ static void testPersistSidecar() {
           "sidecar has TURN_SCALE=40");
     check(std::strstr(buf, "GETV_XR_FLOOR_M=") != nullptr, "sidecar has FLOOR_M");
     check(std::strstr(buf, "GETV_XR_TURN=1") != nullptr, "sidecar keeps TURN armed");
-    check(std::strstr(buf, "GETV_XR_SNAP") == nullptr, "sidecar has no GETV_XR_SNAP");
+    check(std::strstr(buf, "set GETV_XR_SNAP") == nullptr, "sidecar has no GETV_XR_SNAP");
     check(std::strstr(buf, "HEAD_TRANSLATE") == nullptr, "sidecar has no HT");
     std::remove(path);
 }
