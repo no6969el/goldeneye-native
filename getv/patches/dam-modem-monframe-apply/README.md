@@ -1,7 +1,7 @@
-# APPLY — GETV_VR_MONFRAME (GEVR #70 residual Dam modem flicker)
+# APPLY — GETV_VR_MONFRAME (GEVR #70) — **CHAIR REJECT**
 
-**Status:** APPLY LANDED (public tree = patch + notes only).
-**Ask:** Tick `MonitorRecord` scroll/timer **once per sim frame** so both eyes reuse the same UVs.
+**Status:** Patch is on the tree **default OFF**. Chair **MONFRAME=1 REJECT** (worse than HT0). Do **not** boot, KEEP, or re-sit this knob. Residual after HT0: `getv/patches/dam-modem-residual-dig/RESULT.md`.
+**Ask (historical):** Tick `MonitorRecord` scroll/timer **once per sim frame** so both eyes reuse the same UVs.
 **Default:** `GETV_VR_MONFRAME` unset / empty / `0` = **OFF** (retail per-eye tick).
 **Not KEEP-ON.** Do not add to `gevr-*-boot.cmd` until a sit PASS.
 **Do not** flip `TEXINVAL` / `TEXDLRETAG` / `VFXTMEM` / `VFXSHIFT` OFF.
