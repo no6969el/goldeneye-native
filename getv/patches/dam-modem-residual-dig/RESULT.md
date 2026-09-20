@@ -12,6 +12,7 @@ Director can PARK, or green-light one residual chair, from this page alone.
 
 Prior DIG: `getv/patches/dam-modem-flicker-dig/RESULT.md` (PR #5).
 MONFRAME APPLY (rejected in chair): `getv/patches/dam-modem-monframe-apply/` (PR #6). Leave that patch **OFF**.
+**Left-eye leftover** (standing near, after SKYMESH=0): `getv/patches/dam-modem-lefteye-dig/RESULT.md` — PR27 CHRBUG attach path does **not** explain left-only.
 
 ---
 
