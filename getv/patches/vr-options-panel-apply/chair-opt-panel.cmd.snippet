@@ -1,0 +1,15 @@
+rem Chair-only. Do not merge into Start-GEVR.bat / gevr-*-boot.cmd until PASS.
+rem Run AFTER the boot cmd has exported PLAY0 / KEEP (vr442 Latest).
+rem
+rem   1. Start-GEVR.bat
+rem   2. This scratch line on the same cmd:
+set GETV_VR_OPT_PANEL=1
+rem
+rem Expect once: [getv][optpanel] GETV_VR_OPT_PANEL=1 hub
+rem Stay on intro / file-select. Panel is on the RIGHT of the cinema.
+rem Start a mission → panel must be gone.
+rem
+rem Do not set GETV_XR_FOVMATCH.
+rem Do not restore GETV_XR_HEAD_TRANSLATE=1.
+rem Do not flip GETV_VR_PLAYSPACE / GETV_VR_GUNREBASE for this sit.
+rem Do not set GETV_UNLOCKALL.

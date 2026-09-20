@@ -232,6 +232,13 @@ float geVrPhysicalCrouch(void);
 /* Recentre play space to the current head yaw and position. */
 void geVrRecenter(void);
 
+/*
+ * Hub options panel (GEVR #76): include ge_vr/ge_vr_opt.h.
+ * GETV_VR_OPT_PANEL unset/empty/0 = OFF. World-locked cinema-hub family
+ * (right of PLAY_SCREEN=2), not head-locked. Does not touch HEAD_TRANSLATE,
+ * PLAYSPACE, or GUNREBASE.
+ */
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

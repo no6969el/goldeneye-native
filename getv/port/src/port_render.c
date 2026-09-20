@@ -136,6 +136,20 @@ static int ge_vr_gunrebase(void)
     return on;
 }
 
+/* GEVR #76 Phase 2. Unset / empty / 0 = OFF (ship). Chair-only until PASS.
+ * Do not KEEP-ON. Do not add to gevr-*-boot.cmd. Live panel + registry are
+ * include/ge_vr/ge_vr_opt.h. Workshop: same getenv next to PLAY_SCREEN draw.
+ * Does not touch HEAD_TRANSLATE / PLAYSPACE / GUNREBASE. */
+static int ge_vr_opt_panel(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("GETV_VR_OPT_PANEL");
+        on = (e != NULL && e[0] != '\0') ? (atoi(e) != 0) : 0; /* default OFF */
+    }
+    return on;
+}
+
 /* Dam crates #29: ship opaque prop fog + occlusion skip ON when unset. */
 static int ge_vr_propfogalpha(void)
 {
